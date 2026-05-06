@@ -3,17 +3,27 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Command-line AI assistant with screen analysis and web search, optimized for Gemini free tier",
-  "main": "index.js",
+  "main": "dist/index.js",
   "bin": {
-    "lucifer": "index.js"
+    "lucifer": "dist/index.js"
   },
   "scripts": {
     "start": "npx ts-node index.ts",
-    "build": "tsc",
+    "build": "ncc build index.ts -o dist",
     "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["ai", "assistant", "cli", "gemini", "screen-analysis", "web-search"],
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "ai",
+    "assistant",
+    "cli",
+    "gemini",
+    "screen-analysis",
+    "web-search"
+  ],
   "author": "Lucifer",
   "license": "MIT",
   "repository": {
@@ -32,10 +42,15 @@
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0"
+    "@types/node": "^25.6.0",
+    "@vercel/ncc": "^0.38.4"
   },
   "engines": {
     "node": ">=18.0.0"
   },
-  "os": ["darwin", "linux", "win32"]
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ]
 }
