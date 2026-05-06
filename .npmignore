@@ -1,0 +1,27 @@
+# Exclude sensitive files
+.env
+.rate-limits.json
+screen.png
+
+# Exclude development files
+.gitignore
+tsconfig.json
+src/
+*.ts
+!dist/
+
+# Exclude logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Exclude OS files
+.DS_Store
+Thumbs.db
+
+# Exclude IDE files
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,30 +1,25 @@
 import { GoogleGenAI } from "@google/genai";
 import 'dotenv/config';
-
 const apiKey = process.env.API_KEY;
 if (!apiKey) {
-  throw new Error("API_KEY environment variable is required. Check the .env file in the project folder.");
+    throw new Error("API_KEY environment variable is required. Check the .env file in the project folder.");
 }
-
 const ai = new GoogleGenAI({ apiKey });
-
 async function listMyModels() {
     try {
         console.log("Fetching your available models...");
-        
         // This returns a Pager object
         const response = await ai.models.list();
-
         console.log("\n--- YOUR AUTHORIZED MODELS ---");
-        
         // Pager objects in the 2026 SDK are async iterators
         for await (const model of response) {
             console.log(`> ${model.name}`);
         }
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Failed to fetch models.");
         console.error(error);
     }
 }
-
 listMyModels();
+//# sourceMappingURL=inspect.js.map

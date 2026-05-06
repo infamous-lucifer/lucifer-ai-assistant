@@ -5,11 +5,12 @@
   "description": "Command-line AI assistant with screen analysis and web search, optimized for Gemini free tier",
   "main": "index.js",
   "bin": {
-    "lucifer": "./index.ts"
+    "lucifer": "index.js"
   },
   "scripts": {
     "start": "npx ts-node index.ts",
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["ai", "assistant", "cli", "gemini", "screen-analysis", "web-search"],
