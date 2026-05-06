@@ -12,14 +12,59 @@ import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.join(__dirname, '.env') });
+const envPath = path.join(__dirname, '.env');
 
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  throw new Error("API_KEY environment variable is required. Check the .env file in the project folder.");
+async function showFirstRunInstructions() {
+  console.clear();
+  const title = chalk.bold.white.bgBlue(' LUCIFER SETUP ');
+  const border = '═'.repeat(68);
+
+  console.log(`\n${chalk.blue(border)}`);
+  console.log(`║${title.padEnd(68)}║`);
+  console.log(`╠${chalk.blue(border)}╣`);
+  console.log(chalk.white(`║ Welcome! This is your first time running Lucifer.                        ║`));
+  console.log(chalk.white(`║                                                                    ║`));
+  console.log(chalk.white(`║ 1) Open Google AI Studio and create an API key for Gemini models.   ║`));
+  console.log(chalk.white(`║ 2) Use the free tier if available, then copy the full API key.      ║`));
+  console.log(chalk.white(`║ 3) Paste the key below and press Enter.                             ║`));
+  console.log(chalk.white(`╠${chalk.blue(border)}╣`));
+  console.log(chalk.white(`║ Recommended model access: Gemini 2.5 Flash, Gemini 3.1 Flash Lite   ║`));
+  console.log(chalk.white(`║ This tool will store your key locally in a .env file for you.       ║`));
+  console.log(chalk.white(`╚${chalk.blue(border)}\n`));
 }
 
-const ai = new GoogleGenAI({ apiKey });
+function saveEnv(apiKey: string) {
+  const content = `API_KEY=${apiKey.trim()}\n`;
+  fs.writeFileSync(envPath, content, { encoding: 'utf-8', mode: 0o600 });
+}
+
+async function getApiKeyFromUser(): Promise<string> {
+  await showFirstRunInstructions();
+  const prompt = chalk.green('Paste your Google Gemini API key here: ');
+  const inputKey = await rl.question(prompt);
+  const apiKey = inputKey.trim();
+
+  if (!apiKey) {
+    console.log(chalk.red('\nNo API key entered. Please run the program again and paste your key.'));
+    process.exit(1);
+  }
+
+  saveEnv(apiKey);
+  console.log(chalk.green('\nAPI key saved to .env successfully. Starting Lucifer...\n'));
+  return apiKey;
+}
+
+async function loadApiKey(): Promise<string> {
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath });
+    if (process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  }
+
+  return await getApiKeyFromUser();
+}
+
 const rl = readline.createInterface({ input, output });
 
 // --- Rate Limit Tracking ---
@@ -150,6 +195,8 @@ async function retryWithBackoff<T>(
 // --- Optimized Multi-Model Logic ---
 
 // 1. Search: Uses 2.5 Flash because it has 1,500 Search Grounding limits
+let ai: GoogleGenAI;
+
 async function searchWeb(query: string) {
   return retryWithBackoff(async () => {
     trackRequest('gemini-2.5-flash');
@@ -183,6 +230,9 @@ async function seeScreen(query: string) {
 // --- The Main Logic ---
 
 async function main() {
+  const apiKey = await loadApiKey();
+  ai = new GoogleGenAI({ apiKey });
+
   console.clear();
   console.log(chalk.cyan("=== LUCIFER: LIMIT-OPTIMIZED ASSISTANT ==="));
   console.log(chalk.gray("Mode: Multi-Model (Lite for Chat, 2.5 for Search)"));
