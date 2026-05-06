@@ -21,7 +21,7 @@ lucifer
 
 ### Option 2: From Source
 ```bash
-git clone https://github.com/yourusername/lucifer-ai-assistant.git
+git clone https://github.com/infamous-lucifer/lucifer-ai-assistant.git
 cd lucifer-ai-assistant
 npm install
 npm link  # or npm install -g .

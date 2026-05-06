@@ -17,12 +17,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/lucifer-ai-assistant.git"
+    "url": "https://github.com/infamous-lucifer/lucifer-ai-assistant.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/lucifer-ai-assistant/issues"
+    "url": "https://github.com/infamous-lucifer/lucifer-ai-assistant/issues"
   },
-  "homepage": "https://github.com/yourusername/lucifer-ai-assistant#readme",
+  "homepage": "https://github.com/infamous-lucifer/lucifer-ai-assistant#readme",
   "dependencies": {
     "@google/genai": "^1.52.0",
     "chalk": "^4.1.2",
