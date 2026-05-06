@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
 /******/ var __webpack_modules__ = ({
 
@@ -44535,6 +44535,9 @@ var external_node_fs_default = /*#__PURE__*/__nccwpck_require__.n(external_node_
 // EXTERNAL MODULE: external "node:path"
 var external_node_path_ = __nccwpck_require__(6760);
 var external_node_path_default = /*#__PURE__*/__nccwpck_require__.n(external_node_path_);
+;// CONCATENATED MODULE: external "node:os"
+const external_node_os_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:os");
+var external_node_os_default = /*#__PURE__*/__nccwpck_require__.n(external_node_os_namespaceObject);
 // EXTERNAL MODULE: ./node_modules/chalk/source/index.js
 var source = __nccwpck_require__(465);
 var source_default = /*#__PURE__*/__nccwpck_require__.n(source);
@@ -44544,8 +44547,6 @@ var external_node_crypto_default = /*#__PURE__*/__nccwpck_require__.n(external_n
 // EXTERNAL MODULE: ./node_modules/dotenv/lib/main.js
 var main = __nccwpck_require__(8889);
 var main_default = /*#__PURE__*/__nccwpck_require__.n(main);
-// EXTERNAL MODULE: external "node:url"
-var external_node_url_ = __nccwpck_require__(3136);
 ;// CONCATENATED MODULE: ./index.ts
 
 
@@ -44557,66 +44558,52 @@ var external_node_url_ = __nccwpck_require__(3136);
 
 
 
-const index_filename = (0,external_node_url_.fileURLToPath)(import.meta.url);
-const index_dirname = external_node_path_default().dirname(index_filename);
-const envPath = external_node_path_default().join(index_dirname, '.env');
-async function showFirstRunInstructions() {
-    console.clear();
-    const title = source_default().bold.white.bgBlue(' LUCIFER SETUP ');
-    const border = '═'.repeat(68);
-    console.log(`\n${source_default().blue(border)}`);
-    console.log(`║${title.padEnd(68)}║`);
-    console.log(`╠${source_default().blue(border)}╣`);
-    console.log(source_default().white(`║ Welcome! This is your first time running Lucifer.                        ║`));
-    console.log(source_default().white(`║                                                                    ║`));
-    console.log(source_default().white(`║ 1) Open Google AI Studio and create an API key for Gemini models.   ║`));
-    console.log(source_default().white(`║ 2) Use the free tier if available, then copy the full API key.      ║`));
-    console.log(source_default().white(`║ 3) Paste the key below and press Enter.                             ║`));
-    console.log(source_default().white(`╠${source_default().blue(border)}╣`));
-    console.log(source_default().white(`║ Recommended model access: Gemini 2.5 Flash, Gemini 3.1 Flash Lite   ║`));
-    console.log(source_default().white(`║ This tool will store your key locally in a .env file for you.       ║`));
-    console.log(source_default().white(`╚${source_default().blue(border)}\n`));
-}
-function saveEnv(apiKey) {
-    const content = `API_KEY=${apiKey.trim()}\n`;
-    external_node_fs_default().writeFileSync(envPath, content, { encoding: 'utf-8', mode: 0o600 });
-}
-async function getApiKeyFromUser() {
-    await showFirstRunInstructions();
-    const prompt = source_default().green('Paste your Google Gemini API key here: ');
-    const inputKey = await rl.question(prompt);
-    const apiKey = inputKey.trim();
-    if (!apiKey) {
-        console.log(source_default().red('\nNo API key entered. Please run the program again and paste your key.'));
-        process.exit(1);
-    }
-    saveEnv(apiKey);
-    console.log(source_default().green('\nAPI key saved to .env successfully. Starting Lucifer...\n'));
-    return apiKey;
-}
-async function loadApiKey() {
-    if (external_node_fs_default().existsSync(envPath)) {
-        main_default().config({ path: envPath });
-        if (process.env.API_KEY) {
-            return process.env.API_KEY;
-        }
-    }
-    return await getApiKeyFromUser();
-}
+// --- Global Configuration Setup ---
+const CONFIG_FILE = external_node_path_default().join(external_node_os_default().homedir(), '.lucifer-env');
+main_default().config({ path: CONFIG_FILE });
+let apiKey = process.env.API_KEY;
+let ai;
 const rl = external_node_readline_promises_namespaceObject.createInterface({ input: external_node_process_.stdin, output: external_node_process_.stdout });
+async function initializeApp() {
+    if (!apiKey) {
+        console.log(source_default().yellow("\n=== First Time Setup ==="));
+        console.log(source_default().gray("Get your free Gemini API key from: https://makersuite.google.com/app/apikey"));
+        apiKey = await rl.question(source_default().green('Enter your API Key: '));
+        if (!apiKey || !apiKey.trim()) {
+            console.log(source_default().red("Error: API Key cannot be empty. Exiting."));
+            process.exit(1);
+        }
+        // Save it globally so they never have to enter it again
+        external_node_fs_default().writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
+        console.log(source_default().cyan(`\nSuccess! Key saved securely to ${CONFIG_FILE}`));
+        console.log(source_default().gray("Starting Lucifer...\n"));
+    }
+    ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+}
 // --- Rate Limit Tracking ---
-const RATE_LIMIT_LOG = external_node_path_default().join(process.cwd(), '.rate-limits.json');
+const RATE_LIMIT_LOG = external_node_path_default().join(external_node_os_default().homedir(), '.lucifer-rate-limits.json');
 function loadRateLimitData() {
     const today = new Date().toISOString().split('T')[0];
+    // Explicitly define the default data to satisfy strict type checks
+    const defaultData = {
+        date: today,
+        models: {}
+    };
     if (external_node_fs_default().existsSync(RATE_LIMIT_LOG)) {
-        const data = JSON.parse(external_node_fs_default().readFileSync(RATE_LIMIT_LOG, 'utf-8'));
-        // Reset if different day
-        if (data.date !== today) {
-            return { date: today, models: {} };
+        try {
+            // Use 'as RateLimitData' instead of type declaration for the any-return of JSON.parse
+            const data = JSON.parse(external_node_fs_default().readFileSync(RATE_LIMIT_LOG, 'utf-8'));
+            if (data.date !== today) {
+                return defaultData;
+            }
+            return data;
         }
-        return data;
+        catch {
+            // Removed the unused 'e' variable
+            return defaultData;
+        }
     }
-    return { date: today, models: {} };
+    return defaultData;
 }
 function saveRateLimitData(data) {
     external_node_fs_default().writeFileSync(RATE_LIMIT_LOG, JSON.stringify(data, null, 2));
@@ -44646,20 +44633,16 @@ function showRateLimits() {
 let cachedScreenHash = null;
 let cachedScreenData = null;
 async function getCachedScreenCapture() {
-    const screenshotPath = external_node_path_default().join(process.cwd(), 'screen.png');
-    // Cross-platform screenshot command
+    const screenshotPath = external_node_path_default().join(external_node_os_default().tmpdir(), 'lucifer-screen.png');
     const platform = process.platform;
     let captureCommand;
     if (platform === 'darwin') {
-        // macOS
         captureCommand = `screencapture -x ${screenshotPath}`;
     }
     else if (platform === 'linux') {
-        // Linux (try scrot first, fallback to import)
         captureCommand = `scrot -z ${screenshotPath} || import -window root ${screenshotPath}`;
     }
     else if (platform === 'win32') {
-        // Windows (requires nircmd or PowerShell)
         captureCommand = `nircmd.exe savescreenshot ${screenshotPath} || powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('%{PRTSC}'); Start-Sleep -Milliseconds 100; $img = [System.Windows.Forms.Clipboard]::GetImage(); $img.Save('${screenshotPath}')"`;
     }
     else {
@@ -44668,13 +44651,11 @@ async function getCachedScreenCapture() {
     (0,external_node_child_process_namespaceObject.execSync)(captureCommand);
     const data = external_node_fs_default().readFileSync(screenshotPath);
     const hash = external_node_crypto_default().createHash('sha256').update(data).digest('hex');
-    // Check if screen changed
     if (hash === cachedScreenHash && cachedScreenData) {
         console.log(source_default().yellow('  [Using cached screenshot]'));
         external_node_fs_default().unlinkSync(screenshotPath);
         return cachedScreenData;
     }
-    // Cache new screenshot
     cachedScreenHash = hash;
     cachedScreenData = data.toString('base64');
     external_node_fs_default().unlinkSync(screenshotPath);
@@ -44689,7 +44670,6 @@ async function retryWithBackoff(fn, maxRetries = 3, initialDelayMs = 1000) {
         }
         catch (err) {
             lastError = err;
-            // Check if it's a rate limit error
             if (err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
                 if (attempt < maxRetries) {
                     const delayMs = initialDelayMs * Math.pow(2, attempt);
@@ -44704,8 +44684,6 @@ async function retryWithBackoff(fn, maxRetries = 3, initialDelayMs = 1000) {
     throw lastError;
 }
 // --- Optimized Multi-Model Logic ---
-// 1. Search: Uses 2.5 Flash because it has 1,500 Search Grounding limits
-let ai;
 async function searchWeb(query) {
     return retryWithBackoff(async () => {
         trackRequest('gemini-2.5-flash');
@@ -44714,10 +44692,9 @@ async function searchWeb(query) {
             contents: query,
             config: { tools: [{ googleSearch: {} }] }
         });
-        return response.text;
+        return response.text || "No response generated.";
     });
 }
-// 2. Vision: Uses 3.1 Flash Lite (500 RPD) instead of Computer Use (0 RPD)
 async function seeScreen(query) {
     return retryWithBackoff(async () => {
         trackRequest('gemini-3.1-flash-lite-preview');
@@ -44729,13 +44706,12 @@ async function seeScreen(query) {
                 { inlineData: { mimeType: "image/png", data: base64Image } }
             ]
         });
-        return response.text;
+        return response.text || "No response generated.";
     });
 }
 // --- The Main Logic ---
 async function index_main() {
-    const apiKey = await loadApiKey();
-    ai = new GoogleGenAI({ apiKey });
+    await initializeApp();
     console.clear();
     console.log(source_default().cyan("=== LUCIFER: LIMIT-OPTIMIZED ASSISTANT ==="));
     console.log(source_default().gray("Mode: Multi-Model (Lite for Chat, 2.5 for Search)"));
@@ -44763,7 +44739,6 @@ async function index_main() {
                 console.log(`\n${source_default().white(result)}\n`);
             }
             else {
-                // Default Chat: Uses 3.1 Flash Lite
                 trackRequest('gemini-3.1-flash-lite-preview');
                 const response = await retryWithBackoff(async () => {
                     return ai.models.generateContent({
@@ -44771,7 +44746,7 @@ async function index_main() {
                         contents: query
                     });
                 });
-                console.log(source_default().white(response.text) + '\n');
+                console.log(source_default().white(response.text || "") + '\n');
             }
         }
         catch (err) {

@@ -1,123 +1,104 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env node
 import { GoogleGenAI } from "@google/genai";
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import chalk from 'chalk';
 import crypto from 'node:crypto';
 import dotenv from 'dotenv';
-import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const envPath = path.join(__dirname, '.env');
+// --- Global Configuration Setup ---
+const CONFIG_FILE: string = path.join(os.homedir(), '.lucifer-env');
+dotenv.config({ path: CONFIG_FILE });
 
-async function showFirstRunInstructions() {
-  console.clear();
-  const title = chalk.bold.white.bgBlue(' LUCIFER SETUP ');
-  const border = '═'.repeat(68);
-
-  console.log(`\n${chalk.blue(border)}`);
-  console.log(`║${title.padEnd(68)}║`);
-  console.log(`╠${chalk.blue(border)}╣`);
-  console.log(chalk.white(`║ Welcome! This is your first time running Lucifer.                        ║`));
-  console.log(chalk.white(`║                                                                    ║`));
-  console.log(chalk.white(`║ 1) Open Google AI Studio and create an API key for Gemini models.   ║`));
-  console.log(chalk.white(`║ 2) Use the free tier if available, then copy the full API key.      ║`));
-  console.log(chalk.white(`║ 3) Paste the key below and press Enter.                             ║`));
-  console.log(chalk.white(`╠${chalk.blue(border)}╣`));
-  console.log(chalk.white(`║ Recommended model access: Gemini 2.5 Flash, Gemini 3.1 Flash Lite   ║`));
-  console.log(chalk.white(`║ This tool will store your key locally in a .env file for you.       ║`));
-  console.log(chalk.white(`╚${chalk.blue(border)}\n`));
-}
-
-function saveEnv(apiKey: string) {
-  const content = `API_KEY=${apiKey.trim()}\n`;
-  fs.writeFileSync(envPath, content, { encoding: 'utf-8', mode: 0o600 });
-}
-
-async function getApiKeyFromUser(): Promise<string> {
-  await showFirstRunInstructions();
-  const prompt = chalk.green('Paste your Google Gemini API key here: ');
-  const inputKey = await rl.question(prompt);
-  const apiKey = inputKey.trim();
-
-  if (!apiKey) {
-    console.log(chalk.red('\nNo API key entered. Please run the program again and paste your key.'));
-    process.exit(1);
-  }
-
-  saveEnv(apiKey);
-  console.log(chalk.green('\nAPI key saved to .env successfully. Starting Lucifer...\n'));
-  return apiKey;
-}
-
-async function loadApiKey(): Promise<string> {
-  if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
-    if (process.env.API_KEY) {
-      return process.env.API_KEY;
-    }
-  }
-
-  return await getApiKeyFromUser();
-}
+let apiKey: string | undefined = process.env.API_KEY;
+let ai: GoogleGenAI;
 
 const rl = readline.createInterface({ input, output });
 
+async function initializeApp(): Promise<void> {
+    if (!apiKey) {
+        console.log(chalk.yellow("\n=== First Time Setup ==="));
+        console.log(chalk.gray("Get your free Gemini API key from: https://makersuite.google.com/app/apikey"));
+        
+        apiKey = await rl.question(chalk.green('Enter your API Key: '));
+        
+        if (!apiKey || !apiKey.trim()) {
+            console.log(chalk.red("Error: API Key cannot be empty. Exiting."));
+            process.exit(1);
+        }
+
+        // Save it globally so they never have to enter it again
+        fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
+        console.log(chalk.cyan(`\nSuccess! Key saved securely to ${CONFIG_FILE}`));
+        console.log(chalk.gray("Starting Lucifer...\n"));
+    }
+
+    ai = new GoogleGenAI({ apiKey: apiKey.trim() });
+}
+
 // --- Rate Limit Tracking ---
-const RATE_LIMIT_LOG = path.join(process.cwd(), '.rate-limits.json');
+const RATE_LIMIT_LOG: string = path.join(os.homedir(), '.lucifer-rate-limits.json');
 
 interface RateLimitData {
-  date: string;
-  models: {
-    [model: string]: number;
-  };
+    date: string;
+    models: Record<string, number>;
 }
 
 function loadRateLimitData(): RateLimitData {
-  const today = new Date().toISOString().split('T')[0] as string;
-  
-  if (fs.existsSync(RATE_LIMIT_LOG)) {
-    const data = JSON.parse(fs.readFileSync(RATE_LIMIT_LOG, 'utf-8'));
-    // Reset if different day
-    if (data.date !== today) {
-      return { date: today, models: {} };
+    const today: string = new Date().toISOString().split('T')[0]!;
+    
+    // Explicitly define the default data to satisfy strict type checks
+    const defaultData: RateLimitData = { 
+        date: today, 
+        models: {} as Record<string, number> 
+    };
+
+    if (fs.existsSync(RATE_LIMIT_LOG)) {
+        try {
+            // Use 'as RateLimitData' instead of type declaration for the any-return of JSON.parse
+            const data = JSON.parse(fs.readFileSync(RATE_LIMIT_LOG, 'utf-8')) as RateLimitData;
+            
+            if (data.date !== today) {
+                return defaultData;
+            }
+            return data;
+        } catch {
+            // Removed the unused 'e' variable
+            return defaultData;
+        }
     }
-    return data;
-  }
-  
-  return { date: today, models: {} };
+    return defaultData;
 }
 
-function saveRateLimitData(data: RateLimitData) {
-  fs.writeFileSync(RATE_LIMIT_LOG, JSON.stringify(data, null, 2));
+function saveRateLimitData(data: RateLimitData): void {
+    fs.writeFileSync(RATE_LIMIT_LOG, JSON.stringify(data, null, 2));
 }
 
-function trackRequest(model: string | undefined) {
-  if (!model) {
-    console.log(chalk.yellow("  [Warning: No model specified]"));
-    return;
-  }
-  
-  const data = loadRateLimitData();
-  data.models[model] = (data.models[model] || 0) + 1;
-  saveRateLimitData(data);
-  console.log(chalk.gray(`  [${model}: ${data.models[model]} req today]`));
+function trackRequest(model: string): void {
+    if (!model) {
+        console.log(chalk.yellow("  [Warning: No model specified]"));
+        return;
+    }
+    const data = loadRateLimitData();
+    data.models[model] = (data.models[model] || 0) + 1;
+    saveRateLimitData(data);
+    console.log(chalk.gray(`  [${model}: ${data.models[model]} req today]`));
 }
 
-function showRateLimits() {
-  const data = loadRateLimitData();
-  console.log(chalk.cyan('\n--- Rate Limit Usage ---'));
-  Object.entries(data.models).forEach(([model, count]) => {
-    const limit = model === 'gemini-2.5-flash' ? 1500 : 500;
-    const percentage = Math.round((count / limit) * 100);
-    const bar = '█'.repeat(Math.floor(percentage / 5)) + '░'.repeat(20 - Math.floor(percentage / 5));
-    console.log(chalk.gray(`${model}: ${bar} ${count}/${limit} (${percentage}%)`));
-  });
-  console.log();
+function showRateLimits(): void {
+    const data = loadRateLimitData();
+    console.log(chalk.cyan('\n--- Rate Limit Usage ---'));
+    Object.entries(data.models).forEach(([model, count]) => {
+        const limit: number = model === 'gemini-2.5-flash' ? 1500 : 500;
+        const percentage: number = Math.round((count / limit) * 100);
+        const bar: string = '█'.repeat(Math.floor(percentage / 5)) + '░'.repeat(20 - Math.floor(percentage / 5));
+        console.log(chalk.gray(`${model}: ${bar} ${count}/${limit} (${percentage}%)`));
+    });
+    console.log();
 }
 
 // --- Screen Capture Caching ---
@@ -125,160 +106,140 @@ let cachedScreenHash: string | null = null;
 let cachedScreenData: string | null = null;
 
 async function getCachedScreenCapture(): Promise<string> {
-  const screenshotPath = path.join(process.cwd(), 'screen.png');
-  
-  // Cross-platform screenshot command
-  const platform = process.platform;
-  let captureCommand: string;
-  
-  if (platform === 'darwin') {
-    // macOS
-    captureCommand = `screencapture -x ${screenshotPath}`;
-  } else if (platform === 'linux') {
-    // Linux (try scrot first, fallback to import)
-    captureCommand = `scrot -z ${screenshotPath} || import -window root ${screenshotPath}`;
-  } else if (platform === 'win32') {
-    // Windows (requires nircmd or PowerShell)
-    captureCommand = `nircmd.exe savescreenshot ${screenshotPath} || powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('%{PRTSC}'); Start-Sleep -Milliseconds 100; $img = [System.Windows.Forms.Clipboard]::GetImage(); $img.Save('${screenshotPath}')"`;
-  } else {
-    throw new Error(`Unsupported platform: ${platform}. Please implement screenshot capture for your OS.`);
-  }
-  
-  execSync(captureCommand);
-  const data = fs.readFileSync(screenshotPath);
-  const hash = crypto.createHash('sha256').update(data).digest('hex');
-  
-  // Check if screen changed
-  if (hash === cachedScreenHash && cachedScreenData) {
-    console.log(chalk.yellow('  [Using cached screenshot]'));
+    const screenshotPath: string = path.join(os.tmpdir(), 'lucifer-screen.png');
+    const platform: NodeJS.Platform = process.platform;
+    let captureCommand: string;
+    
+    if (platform === 'darwin') {
+        captureCommand = `screencapture -x ${screenshotPath}`;
+    }
+    else if (platform === 'linux') {
+        captureCommand = `scrot -z ${screenshotPath} || import -window root ${screenshotPath}`;
+    }
+    else if (platform === 'win32') {
+        captureCommand = `nircmd.exe savescreenshot ${screenshotPath} || powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('%{PRTSC}'); Start-Sleep -Milliseconds 100; $img = [System.Windows.Forms.Clipboard]::GetImage(); $img.Save('${screenshotPath}')"`;
+    }
+    else {
+        throw new Error(`Unsupported platform: ${platform}. Please implement screenshot capture for your OS.`);
+    }
+    
+    execSync(captureCommand);
+    const data: Buffer = fs.readFileSync(screenshotPath);
+    const hash: string = crypto.createHash('sha256').update(data).digest('hex');
+    
+    if (hash === cachedScreenHash && cachedScreenData) {
+        console.log(chalk.yellow('  [Using cached screenshot]'));
+        fs.unlinkSync(screenshotPath);
+        return cachedScreenData;
+    }
+    
+    cachedScreenHash = hash;
+    cachedScreenData = data.toString('base64');
     fs.unlinkSync(screenshotPath);
     return cachedScreenData;
-  }
-  
-  // Cache new screenshot
-  cachedScreenHash = hash;
-  cachedScreenData = data.toString('base64');
-  fs.unlinkSync(screenshotPath);
-  return cachedScreenData;
 }
 
 // --- Retry Logic with Exponential Backoff ---
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = 3,
-  initialDelayMs: number = 1000
-): Promise<T> {
-  let lastError: any;
-  
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      lastError = err;
-      
-      // Check if it's a rate limit error
-      if (err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
-        if (attempt < maxRetries) {
-          const delayMs = initialDelayMs * Math.pow(2, attempt);
-          console.log(chalk.yellow(`\n  Rate limited. Retrying in ${delayMs}ms... (attempt ${attempt + 1}/${maxRetries})`));
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          continue;
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelayMs = 1000): Promise<T> {
+    let lastError: any;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
         }
-      }
-      throw err;
+        catch (err: any) {
+            lastError = err;
+            if (err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
+                if (attempt < maxRetries) {
+                    const delayMs: number = initialDelayMs * Math.pow(2, attempt);
+                    console.log(chalk.yellow(`\n  Rate limited. Retrying in ${delayMs}ms... (attempt ${attempt + 1}/${maxRetries})`));
+                    await new Promise(resolve => setTimeout(resolve, delayMs));
+                    continue;
+                }
+            }
+            throw err;
+        }
     }
-  }
-  
-  throw lastError;
+    throw lastError;
 }
 
 // --- Optimized Multi-Model Logic ---
-
-// 1. Search: Uses 2.5 Flash because it has 1,500 Search Grounding limits
-let ai: GoogleGenAI;
-
-async function searchWeb(query: string) {
-  return retryWithBackoff(async () => {
-    trackRequest('gemini-2.5-flash');
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: query,
-      config: { tools: [{ googleSearch: {} }] }
+async function searchWeb(query: string): Promise<string> {
+    return retryWithBackoff(async () => {
+        trackRequest('gemini-2.5-flash');
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: query,
+            config: { tools: [{ googleSearch: {} }] }
+        });
+        return response.text || "No response generated.";
     });
-    return response.text;
-  });
 }
 
-// 2. Vision: Uses 3.1 Flash Lite (500 RPD) instead of Computer Use (0 RPD)
-async function seeScreen(query: string) {
-  return retryWithBackoff(async () => {
-    trackRequest('gemini-3.1-flash-lite-preview');
-    const base64Image = await getCachedScreenCapture();
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-lite-preview",
-      contents: [
-        { text: query || "What is on my screen?" },
-        { inlineData: { mimeType: "image/png", data: base64Image } }
-      ]
+async function seeScreen(query: string): Promise<string> {
+    return retryWithBackoff(async () => {
+        trackRequest('gemini-3.1-flash-lite-preview');
+        const base64Image = await getCachedScreenCapture();
+        const response = await ai.models.generateContent({
+            model: "gemini-3.1-flash-lite-preview",
+            contents: [
+                { text: query || "What is on my screen?" },
+                { inlineData: { mimeType: "image/png", data: base64Image } }
+            ]
+        });
+        return response.text || "No response generated.";
     });
-
-    return response.text;
-  });
 }
 
 // --- The Main Logic ---
-
-async function main() {
-  const apiKey = await loadApiKey();
-  ai = new GoogleGenAI({ apiKey });
-
-  console.clear();
-  console.log(chalk.cyan("=== LUCIFER: LIMIT-OPTIMIZED ASSISTANT ==="));
-  console.log(chalk.gray("Mode: Multi-Model (Lite for Chat, 2.5 for Search)"));
-  console.log(chalk.gray("Features: Rate Limit Tracking, Screen Caching, Retry Logic"));
-  console.log(chalk.gray("Commands: !search <query>, !screen [query], !limits, exit\n"));
-
-  while (true) {
-    const query = await rl.question(chalk.green('lucifer@m5-air > '));
+async function main(): Promise<void> {
+    await initializeApp(); 
     
-    if (query.toLowerCase() === 'exit') {
-      showRateLimits();
-      break;
-    }
-
-    if (query.toLowerCase() === '!limits') {
-      showRateLimits();
-      continue;
-    }
-
-    try {
-      if (query.startsWith('!search')) {
-        process.stdout.write(chalk.blue("Searching web with 2.5-Flash (1.5K RPD)..."));
-        const result = await searchWeb(query.slice(8));
-        console.log(`\n${chalk.white(result)}\n`);
+    console.clear();
+    console.log(chalk.cyan("=== LUCIFER: LIMIT-OPTIMIZED ASSISTANT ==="));
+    console.log(chalk.gray("Mode: Multi-Model (Lite for Chat, 2.5 for Search)"));
+    console.log(chalk.gray("Features: Rate Limit Tracking, Screen Caching, Retry Logic"));
+    console.log(chalk.gray("Commands: !search <query>, !screen [query], !limits, exit\n"));
+    
+    while (true) {
+        const query: string = await rl.question(chalk.green('lucifer@m5-air > '));
         
-      } else if (query.startsWith('!screen')) {
-        process.stdout.write(chalk.magenta("Analyzing screen with 3.1-Lite (500 RPD)..."));
-        const result = await seeScreen(query.slice(8));
-        console.log(`\n${chalk.white(result)}\n`);
+        if (query.toLowerCase() === 'exit') {
+            showRateLimits();
+            break;
+        }
         
-      } else {
-        // Default Chat: Uses 3.1 Flash Lite
-        trackRequest('gemini-3.1-flash-lite-preview');
-        const response = await retryWithBackoff(async () => {
-          return ai.models.generateContent({
-            model: "gemini-3.1-flash-lite-preview",
-            contents: query
-          });
-        });
-        console.log(chalk.white(response.text) + '\n');
-      }
-    } catch (err: any) {
-      console.log(chalk.red(`\nError: ${err.message}\n`));
+        if (query.toLowerCase() === '!limits') {
+            showRateLimits();
+            continue;
+        }
+        
+        try {
+            if (query.startsWith('!search')) {
+                process.stdout.write(chalk.blue("Searching web with 2.5-Flash (1.5K RPD)..."));
+                const result = await searchWeb(query.slice(8));
+                console.log(`\n${chalk.white(result)}\n`);
+            }
+            else if (query.startsWith('!screen')) {
+                process.stdout.write(chalk.magenta("Analyzing screen with 3.1-Lite (500 RPD)..."));
+                const result = await seeScreen(query.slice(8));
+                console.log(`\n${chalk.white(result)}\n`);
+            }
+            else {
+                trackRequest('gemini-3.1-flash-lite-preview');
+                const response = await retryWithBackoff(async () => {
+                    return ai.models.generateContent({
+                        model: "gemini-3.1-flash-lite-preview",
+                        contents: query
+                    });
+                });
+                console.log(chalk.white(response.text || "") + '\n');
+            }
+        }
+        catch (err: any) {
+            console.log(chalk.red(`\nError: ${err.message}\n`));
+        }
     }
-  }
-  rl.close();
+    rl.close();
 }
 
 main().catch(console.error);
