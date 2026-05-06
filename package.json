@@ -1,0 +1,40 @@
+{
+  "name": "lucifer-ai-assistant",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Command-line AI assistant with screen analysis and web search, optimized for Gemini free tier",
+  "main": "index.js",
+  "bin": {
+    "lucifer": "./index.ts"
+  },
+  "scripts": {
+    "start": "npx ts-node index.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["ai", "assistant", "cli", "gemini", "screen-analysis", "web-search"],
+  "author": "Lucifer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/lucifer-ai-assistant.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/lucifer-ai-assistant/issues"
+  },
+  "homepage": "https://github.com/yourusername/lucifer-ai-assistant#readme",
+  "dependencies": {
+    "@google/genai": "^1.52.0",
+    "chalk": "^4.1.2",
+    "dotenv": "^17.4.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "os": ["darwin", "linux", "win32"]
+}
