@@ -22174,7 +22174,7 @@ async function syncDependencies() {
 const args = process.argv.slice(2);
 function printHelp() {
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`
-=== LUCIFER v8.0 (RESILIENT CORE) — Quick Reference ===
+=== LUCIFER v9.0 (HYBRID UTILITY) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -22673,7 +22673,7 @@ async function main() {
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan('─'.repeat(50)) + '\n');
     const projectFolder = node_path__WEBPACK_IMPORTED_MODULE_7___default().basename(PROJECT_ROOT);
-    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v8.0 (RESILIENT CORE) ===`));
+    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v9.0 (HYBRID UTILITY) ===`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Tool Center: (Abstracted)`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Path: ~/${projectFolder}${gitContext}\n`));

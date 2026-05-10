@@ -93,7 +93,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v8.0 (RESILIENT CORE) — Quick Reference ===
+=== LUCIFER v9.0 (HYBRID UTILITY) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -557,7 +557,7 @@ async function main() {
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
     const projectFolder = path.basename(PROJECT_ROOT);
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v8.0 (RESILIENT CORE) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v9.0 (HYBRID UTILITY) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: ~/${projectFolder}${gitContext}\n`));
