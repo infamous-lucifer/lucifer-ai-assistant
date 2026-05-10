@@ -8,10 +8,10 @@
     "lucifer": "dist/index.js"
   },
   "scripts": {
+    "test": "jest --verbose",
     "start": "npx ts-node index.ts",
     "build": "ncc build index.ts -o dist",
-    "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepublishOnly": "npm run build"
   },
   "files": [
     "dist"
@@ -43,6 +43,7 @@
     "@vercel/ncc": "^0.38.4",
     "chalk": "^4.1.2",
     "dotenv": "^17.4.2",
+    "jest": "^30.4.2",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
   },

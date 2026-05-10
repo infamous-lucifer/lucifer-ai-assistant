@@ -1,98 +1,62 @@
-# Lucifer AI Assistant
+# 👹 Lucifer AI Assistant (Hybrid v3.5)
 
-A command-line AI assistant optimized for free-tier Gemini API usage, with screen analysis, web search, and rate limit management.
+**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS (optimized for Apple Silicon M5). It combines the lightning-fast logic of a local model with the advanced visual capabilities of the Gemini API.
 
-## Features
+## 🚀 Key Features
+- **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 1.5 Flash** for vision tasks.
+- **System Agency:** Lucifer can run terminal commands, manage files, and check system health (battery, uptime) directly.
+- **Surgical Precision:** Uses specialized tools to edit specific lines of code without overwriting entire files.
+- **Self-Correction Loop:** Features an `--evolve` mode where the assistant audits its own code and proposes improvements for "Senior Review."
+- **Dashboard Aware:** Integrated with a centralized `~/runtimes` folder for reliable tool execution.
 
-* **Multi-model optimization**: Uses free-tier friendly models (Gemini 2.5 Flash for search, 3.1 Flash Lite for vision/chat)
-* **Screen analysis**: Captures and analyzes your screen with caching to avoid redundant API calls
-* **Web search**: Integrated Google Search grounding with high limits
-* **Rate limit tracking**: Monitors daily usage with visual progress bars
-* **Retry logic**: Automatic exponential backoff for rate limit errors
-* **Cross-platform**: Works on macOS, Linux, and Windows (with appropriate screen capture tools)
+## 🛠 Project Structure
+- `index.ts`: The main entry point containing the agentic loop and tool definitions.
+- `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v3.5.
+- `package.json`: Project configuration and dependencies (OpenAI, Google GenAI, Chalk).
 
-## Installation
+## 🏃 Getting Started
 
-### Option 1: Global Install from GitHub (Recommended)
-All dependencies are bundled into a single executable file, so you won't run into any environment or sub-dependency (`spawn sh ENOENT`) errors during setup.
+### Prerequisites
+1. **LM Studio:** Running a local server on port `1234`.
+2. **Model:** `qwen2.5-coder-7b-instruct-mlx` loaded in LM Studio.
+3. **API Key:** A Gemini API key (stored in `~/.lucifer-env`) for Vision tasks.
 
+### Installation
 ```bash
-npm install -g github:infamous-lucifer/lucifer-ai-assistant
-lucifer
-```
-
-### Option 2: From Source (For Developers)
-```bash
-git clone [https://github.com/infamous-lucifer/lucifer-ai-assistant.git](https://github.com/infamous-lucifer/lucifer-ai-assistant.git)
+# Clone the repository
+git clone https://github.com/infamous-lucifer/lucifer-ai-assistant.git
 cd lucifer-ai-assistant
+
+# Install dependencies
 npm install
-npm run build  # Bundles code into dist/index.js
-npm link       # Makes the 'lucifer' command available globally
-lucifer
 ```
 
-## Setup
-
-1. **Get a Gemini API key** from [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. **Configure your API Key**: Create a `.env` file in the directory where you run the tool (or set it as a system environment variable `API_KEY`):
-   ```env
-   API_KEY=your_gemini_api_key_here
-   ```
-3. **Install system dependencies**:
-   * **macOS**: `screencapture` (built-in)
-   * **Linux**: `scrot` or `maim` (`sudo apt install scrot`)
-   * **Windows**: `nircmd` or PowerShell screenshot tools
-
-## Usage
-
+### Usage
+Run the assistant from anywhere (if symlinked to your PATH):
 ```bash
 lucifer
 ```
 
-### Commands
-* `!search <query>` - Search the web using Gemini 2.5 Flash
-* `!screen [query]` - Analyze your screen (cached for performance)
-* `!limits` - View today's API usage with progress bars
-* `exit` - Quit and show final usage stats
+**Special Commands:**
+- `!screen [query]`: Take a screenshot and analyze it using Gemini Vision.
+- `--evolve`: Run in maintenance mode to improve Lucifer's own source code.
+- `--rollback`: Instantly restore the last stable version of the assistant.
 
-### Examples
-```text
-lucifer@m5-air > !search latest TypeScript features
-lucifer@m5-air > !screen what applications are open?
-lucifer@m5-air > !limits
-lucifer@m5-air > Hello, how are you?
-```
+## 📈 Version History
 
-## Rate Limits (Free Tier)
+| Version | Milestone | Description |
+| :--- | :--- | :--- |
+| **v1.0** | Initial Release | Basic chat-only assistant with Gemini API. |
+| **v2.0** | Agency Phase | Added `run_command` and basic filesystem access. |
+| **v2.5** | Hybrid Leap | Integrated LM Studio & Qwen 2.5 Coder for local processing. |
+| **v3.0** | Precision Phase | Added surgical tools (`replace_in_file`) and range-based reading. |
+| **v3.3** | Evolution Loop | Created the `propose_fix` workflow with Gemini CLI as Senior Reviewer. |
+| **v3.5** | Responsiveness | Optimized loops for M5 chip and improved error feedback. |
 
-* **Gemini 2.5 Flash**: 1,500 requests/day (search)
-* **Gemini 3.1 Flash Lite**: 500 requests/day (vision/chat)
-* Automatic retry with exponential backoff on rate limits
+## 🛡 Security & Safety
+- **Guard Rails:** Hardcoded blocks for dangerous commands (e.g., `rm -rf /`, `sudo`).
+- **Privacy:** 100% of your code and terminal data stays local. Only screenshots are sent to Gemini API.
+- **Human-in-the-Loop:** All evolution proposals require manual approval before implementation.
 
-## Development
-
-```bash
-npm run build  # Uses @vercel/ncc to compile and bundle into dist/index.js
-```
-
-## Requirements
-
-* Node.js 18+
-* TypeScript
-* Gemini API key
-* Screen capture tool for your OS
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
-## Disclaimer
-
-This tool uses Google's Gemini API. Usage is subject to Google's terms of service and rate limits. The author is not responsible for any API costs or usage violations.
+---
+*Created with 🖤 for the M5 MacBook Air.*
