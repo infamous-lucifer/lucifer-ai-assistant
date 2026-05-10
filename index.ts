@@ -56,7 +56,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v5.0 (ADAPTIVE CORE) — Quick Reference ===
+=== LUCIFER v5.1 (ADAPTIVE CORE) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -69,6 +69,7 @@ STARTUP
   lucifer --help       Show this message
 
 IN-SESSION COMMANDS
+  !search <query>      Direct web research (DuckDuckGo)
   !screen [query]      Analyze your screen with Gemini Vision
   !clip [query]        Analyze clipboard content
   exit / quit          End session
@@ -303,7 +304,7 @@ async function main() {
 
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v5.0 (ADAPTIVE CORE) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v5.1 (ADAPTIVE CORE) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: (Abstracted)${gitContext}\n`));
@@ -337,6 +338,16 @@ async function main() {
 
         if (['exit', 'quit'].includes(query.toLowerCase())) break;
         if (!query.trim()) continue;
+
+        if (query.startsWith('!search')) {
+            const searchQuery = query.replace('!search', '').trim();
+            if (!searchQuery) { console.log(chalk.yellow("Usage: !search <your query>")); continue; }
+            process.stdout.write(chalk.blue(`Searching: ${searchQuery}...\n`));
+            const result = await executeTool("search_web", { query: searchQuery });
+            console.log(`\n${chalk.white(result)}\n`);
+            fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !search ${searchQuery}\n\n**Lucifer (Search Result):** ${result}\n\n---\n\n`);
+            continue;
+        }
 
         if (query.startsWith('!screen')) {
             process.stdout.write(chalk.magenta("Analyzing screen..."));

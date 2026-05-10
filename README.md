@@ -1,6 +1,6 @@
-# 👹 Lucifer AI Assistant (Hybrid v5.0)
+# 👹 Lucifer AI Assistant (Hybrid v5.1)
 
-**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 5.0 introduces the **Adaptive Core**, a self-healing architecture that allows the assistant to research documentation and recover from command errors autonomously.
+**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 5.1 introduces direct search capabilities alongside the **Adaptive Core**.
 
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
@@ -15,6 +15,7 @@
 ...
 | **v4.8** | Stability & Polish | Log rotation, path sanitization, pinned dependencies, and tool call robustness. |
 | **v5.0** | Adaptive Core | Self-healing via search_web, captured stderr, manifest-driven configuration, and evolution audit. |
+| **v5.1** | Quick Search | Added `!search` shortcut for direct, non-agentic web research. |
 
 - `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
 - `package.json`: Project configuration and dependencies.
@@ -47,6 +48,7 @@ lucifer
 ```
 
 **Special Commands:**
+- `!search <query>`: Instantly search the web for technical info or documentation.
 - `!screen [query]`: Take a screenshot and analyze it using Gemini Vision.
 - `!clip [query]`: Analyze current clipboard content.
 - `--evolve`: Run in maintenance mode to audit and improve Lucifer's source code.
