@@ -8,7 +8,7 @@
     "lucifer": "dist/index.js"
   },
   "scripts": {
-    "test": "jest --verbose",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest --verbose",
     "start": "npx ts-node index.ts",
     "build": "ncc build index.ts -o dist",
     "prepublishOnly": "npm run build"
@@ -36,14 +36,16 @@
   "homepage": "https://github.com/infamous-lucifer/lucifer-ai-assistant#readme",
   "dependencies": {
     "@google/genai": "1.52.0",
-    "openai": "6.37.0",
     "chalk": "4.1.2",
-    "dotenv": "17.4.2"
+    "dotenv": "17.4.2",
+    "openai": "6.37.0"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/node": "25.6.0",
     "@vercel/ncc": "0.38.4",
     "jest": "30.4.2",
+    "ts-jest": "^29.4.9",
     "ts-node": "10.9.2",
     "typescript": "6.0.3"
   },

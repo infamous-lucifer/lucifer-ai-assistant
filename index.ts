@@ -11,6 +11,14 @@ import os from 'node:os';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
+import {
+    isPathAllowed,
+    resolveFilePath,
+    isDangerousCommand,
+    applyReplaceInFile,
+    pruneHistory,
+    getLogsToDelete
+} from './lib/utils.js';
 
 // --- Dynamic Path Resolution ---
 const __filename = fileURLToPath(import.meta.url);
@@ -29,14 +37,7 @@ let localAI: OpenAI | undefined;
 
 const rl = readline.createInterface({ input, output });
 
-function isPathAllowed(filePath: string): boolean {
-    const resolved = path.resolve(filePath);
-    const allowedRoots = [
-        path.resolve(PROJECT_ROOT),
-        path.resolve(RUNTIMES_PATH),
-    ];
-    return allowedRoots.some(root => resolved.startsWith(root + path.sep) || resolved === root);
-}
+const ALLOWED_ROOTS = [PROJECT_ROOT, RUNTIMES_PATH];
 
 // --- CLI Argument Handling ---
 const args = process.argv.slice(2);
@@ -283,7 +284,7 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
             case "run_command": {
                 const args = rawArgs as Partial<RunCommandArgs>;
                 if (typeof args.command !== 'string') return "Error: Missing required field 'command'.";
-                if (DANGER_PATTERNS.some(p => p.test(args.command))) {
+                if (isDangerousCommand(args.command)) {
                     return "Error: Command matches known danger patterns and is blocked.";
                 }
                 console.log(chalk.red(`\n  [APPROVE?] ${args.command}`));
@@ -296,7 +297,7 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
             case "read_file": {
                 const args = rawArgs as Partial<ReadFileArgs>;
                 if (typeof args.path !== 'string') return "Error: Missing required field 'path'.";
-                const rPath = resolveFilePath(args.path);
+                const rPath = resolveFilePath(args.path, PROJECT_ROOT, RUNTIMES_PATH);
                 let content = fs.readFileSync(rPath, 'utf-8');
                 if (args.start_line || args.end_line) {
                     const lines = content.split('\n');
@@ -309,16 +310,14 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 if (typeof args.path !== 'string' || typeof args.old_string !== 'string' || typeof args.new_string !== 'string') {
                     return "Error: Missing required fields ('path', 'old_string', or 'new_string').";
                 }
-                const edPath = resolveFilePath(args.path);
+                const edPath = resolveFilePath(args.path, PROJECT_ROOT, RUNTIMES_PATH);
                 if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
                 let fileText = fs.readFileSync(edPath, 'utf-8');
                 
-                // M-3: Check for uniqueness
-                const occurrences = fileText.split(args.old_string).length - 1;
-                if (occurrences === 0) return "Error: Text not found.";
-                if (occurrences > 1) return `Error: '${args.old_string}' found ${occurrences} times. Provide a more specific string to ensure a surgical edit.`;
+                const result = applyReplaceInFile(fileText, args.old_string, args.new_string);
+                if (!result.ok) return result.error;
                 
-                fs.writeFileSync(edPath, fileText.replace(args.old_string, args.new_string));
+                fs.writeFileSync(edPath, result.content);
                 return "Success: Applied.";
             }
             case "propose_fix": {
@@ -327,7 +326,7 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                     return "Error: Missing required fields ('issue', 'file_path', or 'suggested_fix').";
                 }
                 const reviewPath = path.join(PROJECT_ROOT, "REVIEW_REQUEST.md");
-                if (!isPathAllowed(reviewPath)) return "Error: Cannot write review request outside allowed root.";
+                if (!isPathAllowed(reviewPath, ALLOWED_ROOTS)) return "Error: Cannot write review request outside allowed root.";
                 
                 // M-6: Include the issue description
                 const content = `# 🛠 Fix Proposal\n\n**File:** ${args.file_path}\n\n## 🐛 Issue\n${args.issue}\n\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``;
@@ -356,9 +355,8 @@ async function main() {
     
     // N-4: Log Rotation (keep last 50)
     const allLogs = fs.readdirSync(LOGS_DIR).filter(f => f.endsWith('.md')).sort();
-    if (allLogs.length > 50) {
-        allLogs.slice(0, allLogs.length - 50).forEach(f => fs.unlinkSync(path.join(LOGS_DIR, f)));
-    }
+    const toDelete = getLogsToDelete(allLogs, 50);
+    toDelete.forEach(f => fs.unlinkSync(path.join(LOGS_DIR, f)));
 
     const LOG_FILE = path.join(LOGS_DIR, `session-${SESSION_ID}.md`);
     fs.writeFileSync(LOG_FILE, `# Lucifer Session — ${new Date().toLocaleString()}\n\n**Mode:** ${isEvolving ? 'Evolution' : 'Normal'}\n**Project Root:** (Abstracted)\n\n---\n\n`);
@@ -387,8 +385,9 @@ async function main() {
     let history: any[] = [{ role: "system", content: basePrompt + (isEvolving ? "\nEVOLUTION MODE: Audit yourself (index.ts)." : "") }];
 
     while (true) {
-        if (history.length > 36) history = [history[0], ...history.slice(-35)];
-        const query = await rl.question(chalk.green(`lucifer@m5 > `));
+    history = pruneHistory(history, 36);
+    const query = await rl.question(chalk.green(`lucifer@m5 > `));
+
         if (['exit', 'quit'].includes(query.toLowerCase())) break;
         if (!query.trim()) continue;
 
