@@ -1,5 +1,5 @@
 {
-    "version": "5.4",
+    "version": "6.1",
     "dependencies": [
         {
             "name": "ddgr",
@@ -36,6 +36,19 @@
                         "command": { "type": "string" }
                     },
                     "required": ["command"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "list_files",
+                "description": "Lists the files in a directory. Use this to understand the project structure and primary language before searching or reading.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string", "description": "The directory to list, defaults to '.'" }
+                    }
                 }
             }
         },
