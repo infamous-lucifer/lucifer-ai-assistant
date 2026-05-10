@@ -7,7 +7,6 @@ import {
     isPathAllowed,
     resolveFilePath,
     isDangerousCommand,
-    DANGER_PATTERNS,
     applyReplaceInFile,
     pruneHistory,
     getLogsToDelete,
@@ -91,37 +90,37 @@ describe('resolveFilePath', () => {
     test('resolves an absolute path that exists and is allowed', () => {
         const target = `${PROJECT_ROOT}/index.ts`;
         existsSyncSpy.mockImplementation((p) => p === target);
-        expect(resolveFilePath(target, PROJECT_ROOT, RUNTIMES_PATH)).toBe(target);
+        expect(resolveFilePath(target, ALLOWED_ROOTS)).toBe(target);
     });
 
     test('resolves a relative filename by looking inside PROJECT_ROOT', () => {
         const target = path.resolve(`${PROJECT_ROOT}/index.ts`);
         existsSyncSpy.mockImplementation((p) => p === target);
-        expect(resolveFilePath('index.ts', PROJECT_ROOT, RUNTIMES_PATH)).toBe(target);
+        expect(resolveFilePath('index.ts', ALLOWED_ROOTS)).toBe(target);
     });
 
     test('resolves a relative filename by looking inside RUNTIMES_PATH', () => {
         const target = path.resolve(`${RUNTIMES_PATH}/tool.sh`);
         existsSyncSpy.mockImplementation((p) => p === target);
-        expect(resolveFilePath('tool.sh', PROJECT_ROOT, RUNTIMES_PATH)).toBe(target);
+        expect(resolveFilePath('tool.sh', ALLOWED_ROOTS)).toBe(target);
     });
 
     test('throws when the file does not exist anywhere', () => {
         existsSyncSpy.mockReturnValue(false);
-        expect(() => resolveFilePath('ghost.ts', PROJECT_ROOT, RUNTIMES_PATH))
+        expect(() => resolveFilePath('ghost.ts', ALLOWED_ROOTS))
             .toThrow('File not found or outside allowed directories: ghost.ts');
     });
 
     test('throws when the file exists but is outside allowed roots', () => {
         existsSyncSpy.mockImplementation((p) => p === '/etc/passwd');
-        expect(() => resolveFilePath('/etc/passwd', PROJECT_ROOT, RUNTIMES_PATH))
+        expect(() => resolveFilePath('/etc/passwd', ALLOWED_ROOTS))
             .toThrow('File not found or outside allowed directories');
     });
 
     test('does not resolve a path traversal to /etc/passwd', () => {
         // File exists at the traversed path but must still be blocked
         existsSyncSpy.mockReturnValue(true);
-        expect(() => resolveFilePath('../../etc/passwd', PROJECT_ROOT, RUNTIMES_PATH))
+        expect(() => resolveFilePath('../../etc/passwd', ALLOWED_ROOTS))
             .toThrow('File not found or outside allowed directories');
     });
 
@@ -132,6 +131,16 @@ describe('resolveFilePath', () => {
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('isDangerousCommand', () => {
+    const dangerPatterns = [
+        /rm\s+-rf?\s+[~\/]/,
+        /curl[^|]*\|.*sh/,
+        /wget[^|]*\|.*sh/,
+        /dd\s+if=\/dev\//,
+        /mkfs/,
+        /:.*\{.*:.*\|.*:.*&.*\}/,
+        />\s*\/dev\/(disk|sda|nvme)/,
+        /chmod\s+-R\s+[67]77\s+\//,
+    ];
 
     describe('blocked commands', () => {
         const dangerous = [
@@ -151,7 +160,7 @@ describe('isDangerousCommand', () => {
         ];
 
         test.each(dangerous)('%s (%s)', (cmd) => {
-            expect(isDangerousCommand(cmd)).toBe(true);
+            expect(isDangerousCommand(cmd, dangerPatterns)).toBe(true);
         });
     });
 
@@ -177,16 +186,12 @@ describe('isDangerousCommand', () => {
         ];
 
         test.each(safe)('%s (%s)', (cmd) => {
-            expect(isDangerousCommand(cmd)).toBe(false);
+            expect(isDangerousCommand(cmd, dangerPatterns)).toBe(false);
         });
     });
 
-    test('DANGER_PATTERNS array has 8 entries', () => {
-        expect(DANGER_PATTERNS).toHaveLength(8);
-    });
-
-    test('all entries in DANGER_PATTERNS are RegExp instances', () => {
-        DANGER_PATTERNS.forEach(p => expect(p).toBeInstanceOf(RegExp));
+    test('dangerPatterns array has 8 entries', () => {
+        expect(dangerPatterns).toHaveLength(8);
     });
 
 });

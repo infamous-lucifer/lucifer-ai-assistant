@@ -1,0 +1,102 @@
+{
+    "version": "5.0",
+    "dangerPatterns": [
+        "rm\\s+-rf?\\s+[~\\/]",
+        "curl[^|]*\\|.*sh",
+        "wget[^|]*\\|.*sh",
+        "dd\\s+if=\\/dev\\/",
+        "mkfs",
+        ":.*\\{.*:.*\\|.*:.*&.*\\}",
+        ">\\s*\\/dev\\/(disk|sda|nvme)",
+        "chmod\\s+-R\\s+[67]77\\s+\\/"
+    ],
+    "tools": [
+        {
+            "type": "function",
+            "function": {
+                "name": "run_command",
+                "description": "Execute a shell command on macOS. Captures both stdout and stderr. Requires user approval.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": { "type": "string" }
+                    },
+                    "required": ["command"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "read_file",
+                "description": "Read a file with optional line range.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string" },
+                        "start_line": { "type": "number" },
+                        "end_line": { "type": "number" }
+                    },
+                    "required": ["path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "replace_in_file",
+                "description": "Surgically edit text. Replaces exactly ONE occurrence. Provide unique old_string.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string" },
+                        "old_string": { "type": "string" },
+                        "new_string": { "type": "string" }
+                    },
+                    "required": ["path", "old_string", "new_string"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "propose_fix",
+                "description": "Propose a code fix for a specific issue.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "issue": { "type": "string" },
+                        "file_path": { "type": "string" },
+                        "suggested_fix": { "type": "string" }
+                    },
+                    "required": ["issue", "file_path", "suggested_fix"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_deep_system_report",
+                "description": "Comprehensive macOS health report: CPU, RAM, Battery, and Network stats.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {}
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "search_web",
+                "description": "Search the web for technical documentation, command syntax, or troubleshooting info. Returns summaries.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string" }
+                    },
+                    "required": ["query"]
+                }
+            }
+        }
+    ]
+}

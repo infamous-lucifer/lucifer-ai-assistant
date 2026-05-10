@@ -1,18 +1,21 @@
-# 👹 Lucifer AI Assistant (Hybrid v4.8)
+# 👹 Lucifer AI Assistant (Hybrid v5.0)
 
-**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS (optimized for Apple Silicon M5). It combines the lightning-fast logic of a local model with the advanced visual capabilities of the Gemini 2.0 API.
+**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 5.0 introduces the **Adaptive Core**, a self-healing architecture that allows the assistant to research documentation and recover from command errors autonomously.
 
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
-- **System Agency:** Lucifer can run terminal commands, manage files, and generate deep system health reports.
+- **Adaptive Core (v5.0):** Real-time autonomous self-healing via `search_web` and comprehensive error analysis.
+- **Manifest-Driven:** Configuration (tools, security rules, paths) is decoupled into `lucifer-manifest.json` for easy updates.
+- **System Agency:** Lucifer can run terminal commands, manage files, and research updated syntax or docs online.
 - **Persistence:** Markdown session logs (`~/.lucifer-logs`) with automatic log rotation (keeps last 50).
 - **Vision Ready:** Built-in `!screen` command to analyze your workspace using Gemini 2.0 Vision.
 - **Surgical Precision:** Uses specialized tools to edit specific lines of code without overwriting entire files.
-- **Self-Correction Loop:** Features an `--evolve` mode where the assistant audits its own code and proposes improvements for review.
-- **Command Center Aware:** Integrated with a centralized `~/runtimes` folder for reliable tool execution and path resolution.
+- **Self-Evolution:** Enhanced `--evolve` mode for system-wide health checks, dependency audits, and manifest updates.
 
-## 🛠 Project Structure
-- `index.ts`: The main entry point containing the agentic loop and tool definitions.
+...
+| **v4.8** | Stability & Polish | Log rotation, path sanitization, pinned dependencies, and tool call robustness. |
+| **v5.0** | Adaptive Core | Self-healing via search_web, captured stderr, manifest-driven configuration, and evolution audit. |
+
 - `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
 - `package.json`: Project configuration and dependencies.
 

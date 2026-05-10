@@ -160,3 +160,37 @@ The system was hardened against **Environmental Inconsistency** and **Resource A
 
 ---
 **Status:** Release v4.8 Complete. Lucifer is now a resilient, self-maintaining, and environmentally consistent assistant.
+
+# 🧠 Lucifer Evolution: Phase 7 (The Adaptive Core & v5.0 Self-Healing)
+
+In Phase 7, we solved the "Obsolescence Problem." Previously, Lucifer was bound by hardcoded commands and security patterns that could become stale. We transitioned to a dynamic, learning-capable architecture designed to thrive in a changing industry.
+
+## 📋 Evolution Summary
+The system was refactored into the **Adaptive Core**. This architecture decouples logic (how to run) from data (what to run) via a centralized Manifest, while empowering the AI with autonomous research capabilities to fix its own errors in real-time.
+
+## 🛠 Adaptive Core (v5.0)
+| Feature | Status in v4.8 | Status in v5.0 (Final) |
+| :--- | :--- | :--- |
+| **Logic Storage** | Hardcoded in TypeScript | **Decoupled `lucifer-manifest.json`** |
+| **Error Handling** | Generic catch / Halt | **Stderr Capture & Comprehension** |
+| **Learning** | Static knowledge only | **Autonomous `search_web` Research** |
+| **Maintenance** | Manual code audit | **Dependency & System Audit Loop** |
+| **Resilience** | Brittle to command changes | **Dynamic Self-Healing Retry Loop** |
+
+## 🚀 Phase 7: Key Implementations
+
+### 1. The Manifest System
+- Extracted all security `DANGER_PATTERNS`, `tool` definitions, and environment dependencies into `lucifer-manifest.json`.
+- This allows Lucifer to update its own "brain" and security rules during evolution audits without requiring a full code rebuild.
+
+### 2. Autonomous Self-Healing (Diagnose & Retry)
+- Upgraded `run_command` to return full `stderr` to the model context.
+- Implemented a reasoning loop where Lucifer analyzes execution failures and uses the new `search_web` tool (via `ddgr`) to find updated syntax or documentation.
+- The assistant now repairs its own pathing or syntax errors before prompting the user for approval.
+
+### 3. Evolution 2.0
+- Reimagined `--evolve` from a simple code auditor into a proactive system maintainer.
+- Added integration with terminal diagnostics (`npm outdated`) to identify system-level maintenance needs and propose manifest updates via `REVIEW_REQUEST.md`.
+
+---
+**Status:** Release v5.0 Complete. Lucifer is now an evergreen, adaptive, and self-healing agent for the modern macOS workspace.

@@ -8,17 +8,6 @@ export const deps = {
     }
 };
 
-export const DANGER_PATTERNS = [
-    /rm\s+-rf?\s+[~\/]/,
-    /curl[^|]*\|.*sh/,
-    /wget[^|]*\|.*sh/,
-    /dd\s+if=\/dev\//,
-    /mkfs/,
-    /:.*\{.*:.*\|.*:.*&.*\}/,
-    />\s*\/dev\/(disk|sda|nvme)/,
-    /chmod\s+-R\s+[67]77\s+\//,
-];
-
 export function isPathAllowed(filePath: string, allowedRoots: string[]): boolean {
     const resolved = path.resolve(filePath);
     return allowedRoots.some(root => {
@@ -27,14 +16,11 @@ export function isPathAllowed(filePath: string, allowedRoots: string[]): boolean
     });
 }
 
-export function resolveFilePath(filePath: string, projectRoot: string, runtimesPath: string): string {
+export function resolveFilePath(filePath: string, allowedRoots: string[]): string {
     const candidates = [
         filePath,
-        path.join(projectRoot, filePath),
-        path.join(runtimesPath, filePath),
+        ...allowedRoots.map(root => path.join(root, filePath))
     ];
-    
-    const allowedRoots = [projectRoot, runtimesPath];
     
     for (const candidate of candidates) {
         const resolved = path.resolve(candidate);
@@ -43,8 +29,11 @@ export function resolveFilePath(filePath: string, projectRoot: string, runtimesP
     throw new Error(`File not found or outside allowed directories: ${filePath}`);
 }
 
-export function isDangerousCommand(command: string): boolean {
-    return DANGER_PATTERNS.some(p => p.test(command));
+export function isDangerousCommand(command: string, dangerPatterns: (string | RegExp)[]): boolean {
+    return dangerPatterns.some(p => {
+        const regex = typeof p === 'string' ? new RegExp(p) : p;
+        return regex.test(command);
+    });
 }
 
 export function applyReplaceInFile(fileText: string, oldString: string, newString: string): { ok: true, content: string } | { ok: false, error: string } {
