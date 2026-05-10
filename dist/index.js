@@ -22168,6 +22168,7 @@ STARTUP
 
 IN-SESSION COMMANDS
   !search <query>      Direct web research (DuckDuckGo)
+  !tldr <command>      Get quick command cheat sheets
   !report              Instant deep system diagnostics
   !read <path>         Quickly inspect a file
   !test                Run project test suite (npm test)
@@ -22356,6 +22357,20 @@ async function executeTool(name, rawArgs) {
                     return `Web Search Error: ${e.message}. Ensure 'ddgr' is synchronized in your runtimes folder.`;
                 }
             }
+            case "get_command_help": {
+                const args = rawArgs;
+                if (typeof args.command !== 'string')
+                    return "Error: Missing required field 'command'.";
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().yellow(`  [Action] Fetching cheat sheet for: ${args.command}...`));
+                try {
+                    const tldrPath = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(RUNTIMES_PATH, "bin/tldr");
+                    // -p osx for mac-specific results, then the command name
+                    return (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`${tldrPath} -p osx "${args.command}"`, { encoding: 'utf-8' });
+                }
+                catch (e) {
+                    return `Cheat Sheet Error: ${e.message}. Ensure 'tldr' is synchronized in your runtimes folder.`;
+                }
+            }
             case "read_file": {
                 const args = rawArgs;
                 if (typeof args.path !== 'string')
@@ -22508,8 +22523,20 @@ async function main() {
             catch (e) { }
             continue;
         }
-        if (query === '!status') {
+        if (query.startsWith('!status')) {
             await runStatusCheck();
+            continue;
+        }
+        if (query.startsWith('!tldr')) {
+            const cmdName = query.replace('!tldr', '').trim();
+            if (!cmdName) {
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().yellow("Usage: !tldr <command>"));
+                continue;
+            }
+            process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_8___default().blue(`Fetching cheat sheet for: ${cmdName}...\n`));
+            const result = await executeTool("get_command_help", { command: cmdName });
+            console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_8___default().white(result)}\n`);
+            node_fs__WEBPACK_IMPORTED_MODULE_5___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !tldr ${cmdName}\n\n**Lucifer (Cheat Sheet):**\n${result}\n\n---\n\n`);
             continue;
         }
         if (query === '!lms') {

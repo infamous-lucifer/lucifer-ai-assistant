@@ -85,6 +85,7 @@ STARTUP
 
 IN-SESSION COMMANDS
   !search <query>      Direct web research (DuckDuckGo)
+  !tldr <command>      Get quick command cheat sheets
   !report              Instant deep system diagnostics
   !read <path>         Quickly inspect a file
   !test                Run project test suite (npm test)
@@ -251,6 +252,18 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                     return `Web Search Error: ${e.message}. Ensure 'ddgr' is synchronized in your runtimes folder.`;
                 }
             }
+            case "get_command_help": {
+                const args = rawArgs as Partial<RunCommandArgs>;
+                if (typeof args.command !== 'string') return "Error: Missing required field 'command'.";
+                console.log(chalk.yellow(`  [Action] Fetching cheat sheet for: ${args.command}...`));
+                try {
+                    const tldrPath = path.join(RUNTIMES_PATH, "bin/tldr");
+                    // -p osx for mac-specific results, then the command name
+                    return execSync(`${tldrPath} -p osx "${args.command}"`, { encoding: 'utf-8' });
+                } catch (e: any) {
+                    return `Cheat Sheet Error: ${e.message}. Ensure 'tldr' is synchronized in your runtimes folder.`;
+                }
+            }
             case "read_file": {
                 const args = rawArgs as Partial<ReadFileArgs>;
                 if (typeof args.path !== 'string') return "Error: Missing required field 'path'.";
@@ -396,8 +409,18 @@ async function main() {
             continue;
         }
 
-        if (query === '!status') {
+        if (query.startsWith('!status')) {
             await runStatusCheck();
+            continue;
+        }
+
+        if (query.startsWith('!tldr')) {
+            const cmdName = query.replace('!tldr', '').trim();
+            if (!cmdName) { console.log(chalk.yellow("Usage: !tldr <command>")); continue; }
+            process.stdout.write(chalk.blue(`Fetching cheat sheet for: ${cmdName}...\n`));
+            const result = await executeTool("get_command_help", { command: cmdName });
+            console.log(`\n${chalk.white(result)}\n`);
+            fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !tldr ${cmdName}\n\n**Lucifer (Cheat Sheet):**\n${result}\n\n---\n\n`);
             continue;
         }
 

@@ -49,6 +49,7 @@ lucifer
 
 **Special Commands:**
 - `!search <query>`: Instantly search the web for technical info or documentation.
+- `!tldr <command>`: Get a simplified, community-driven cheat sheet for any terminal command.
 - `!report`: Generate a deep system diagnostics report instantly.
 - `!read <path>`: Quickly inspect the content of any project file.
 - `!test`: Execute the full project unit test suite.
