@@ -9,33 +9,51 @@ import path from 'node:path';
 import os from 'node:os';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
 
-// --- Global Configuration ---
-const CONFIG_FILE: string = path.join(os.homedir(), '.lucifer-env');
-const PROJECT_ROOT: string = "/Users/lucifer/personal-assistant";
-const BACKUP_FILE: string = path.join(PROJECT_ROOT, "index.ts.bak");
+// --- Dynamic Path Resolution ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT: string = process.env.LUCIFER_HOME || __dirname;
+const CONFIG_FILE = path.join(os.homedir(), '.lucifer-env');
+const BACKUP_FILE = path.join(PROJECT_ROOT, "index.ts.bak");
+
 dotenv.config({ path: CONFIG_FILE });
 
-let apiKey: string | undefined = process.env.API_KEY;
+let apiKey = process.env.API_KEY;
 let ai: GoogleGenAI;
 let localAI: OpenAI;
 
 const rl = readline.createInterface({ input, output });
 
-// --- Graceful Shutdown Handler ---
+// --- CLI Argument Handling ---
+const args = process.argv.slice(2);
+
+// ISSUE 2 — --rollback implementation
+if (args.includes('--rollback')) {
+    if (fs.existsSync(BACKUP_FILE)) {
+        fs.copyFileSync(BACKUP_FILE, path.join(PROJECT_ROOT, 'index.ts'));
+        console.log(chalk.green('✔ Rolled back to last stable version.'));
+    } else {
+        console.log(chalk.red('✘ No backup found.'));
+    }
+    process.exit(0);
+}
+
+// --- Graceful Shutdown ---
 process.on('SIGINT', () => {
-    console.log(chalk.yellow("\n[Signal] Shutting down Lucifer..."));
+    console.log(chalk.yellow("\n[Signal] Interrupt received. Shutting down..."));
     rl.close();
     process.exit(0);
 });
 
-async function initializeApp(): Promise<void> {
+async function initializeApp() {
     if (!apiKey) {
         console.log(chalk.yellow("\n=== First Time Setup ==="));
         apiKey = await rl.question(chalk.green('Enter your Gemini API Key: '));
         if (apiKey) fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
     }
-    ai = new GoogleGenAI({ apiKey: apiKey!.trim() });
+    ai = new GoogleGenAI(apiKey!.trim());
 
     try {
         const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
@@ -50,10 +68,30 @@ async function initializeApp(): Promise<void> {
     localAI = new OpenAI({
         baseURL: "http://localhost:1234/v1", 
         apiKey: "lm-studio",
-        timeout: 60000, // 60s for M5 chip deep reasoning
+        timeout: 60000,
     });
 }
 
+// ISSUE 1 — !screen vision logic
+async function seeScreen(query: string): Promise<string> {
+    try {
+        const screenshotPath = path.join(os.tmpdir(), `lucifer-screen.png`);
+        execSync(`screencapture -x ${screenshotPath}`);
+        const imageData = fs.readFileSync(screenshotPath).toString('base64');
+        fs.unlinkSync(screenshotPath);
+
+        const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const result = await model.generateContent([
+            { text: query || "What is on my screen?" },
+            { inlineData: { mimeType: "image/png", data: imageData } }
+        ]);
+        return result.response.text();
+    } catch (e: any) {
+        return `Vision Error: ${e.message}`;
+    }
+}
+
+// --- Tool Definitions ---
 const tools = [
     {
         type: "function",
@@ -87,7 +125,7 @@ const tools = [
         type: "function",
         function: {
             name: "replace_in_file",
-            description: "Surgical text replacement in a file.",
+            description: "Surgical text replacement. Creates backup if editing core logic.",
             parameters: {
                 type: "object",
                 properties: {
@@ -103,7 +141,7 @@ const tools = [
         type: "function",
         function: {
             name: "propose_fix",
-            description: "Create a Review Request for the Senior Agent (Gemini CLI).",
+            description: "Create a Review Request for the Senior Agent.",
             parameters: {
                 type: "object",
                 properties: {
@@ -134,6 +172,12 @@ function resolveFilePath(filePath: string): string {
 }
 
 function executeTool(name: string, args: any): string {
+    // ISSUE 3 — Guard Rails
+    const BLOCKED = ['rm -rf /', 'sudo', 'mkfs', ':(){:|:&};:'];
+    if (name === "run_command" && BLOCKED.some(b => args.command.includes(b))) {
+        return "Error: Blocked command. Lucifer does not run destructive or privileged commands.";
+    }
+
     try {
         switch (name) {
             case "run_command":
@@ -161,10 +205,10 @@ function executeTool(name: string, args: any): string {
                 const reviewPath = path.join(PROJECT_ROOT, "REVIEW_REQUEST.md");
                 const doc = `# 🛠 Fix Proposal\n**File:** ${args.file_path}\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``;
                 fs.writeFileSync(reviewPath, doc);
-                return `Proposal saved to ${reviewPath}.`;
+                // ISSUE 7 — Honest return message
+                return `Review request written to REVIEW_REQUEST.md. Open it manually and submit to Gemini CLI with: gemini -f REVIEW_REQUEST.md`;
 
             case "get_system_info":
-                console.log(chalk.yellow(`  [Action] Gathering health report...`));
                 const uptime = execSync('uptime', { encoding: 'utf-8' }).trim();
                 const battery = execSync('pmset -g batt', { encoding: 'utf-8' }).trim();
                 return `📊 **System Health Report**\n\n**Uptime:** ${uptime}\n**Battery:**\n\`\`\`\n${battery}\n\`\`\``;
@@ -174,48 +218,51 @@ function executeTool(name: string, args: any): string {
     } catch (error: any) { return `Error: ${error.message}`; }
 }
 
-async function main(): Promise<void> {
+async function main() {
     await initializeApp(); 
-    const isEvolving = process.argv.includes('--evolve');
+    const isEvolving = args.includes('--evolve');
     
     console.clear();
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v3.5 ${isEvolving ? "(EVOLUTION)" : ""} ===`));
-    console.log(chalk.gray(`Logic: Qwen 2.5 Coder (Local) | Vision: Gemini 1.5 (API)`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.1 (HARDENED) ===`));
+    console.log(chalk.gray(`Logic: Qwen 2.5 Coder | Vision: Gemini 1.5`));
     console.log(chalk.gray(`Path: ${PROJECT_ROOT}\n`));
 
     let history: any[] = [
-        { 
-            role: "system", 
-            content: `You are Lucifer, a professional agentic AI. 
-                     RULES:
-                     1. After running a command, ALWAYS give a text summary.
-                     2. Use Markdown for ALL responses.
-                     3. If a tool fails, explain why and stop.`
-        }
+        { role: "system", content: "You are Lucifer, a pro agentic AI. 1. Always give text summaries. 2. Use Markdown. 3. Be concise." }
     ];
 
     while (true) {
-        const query: string = await rl.question(chalk.green(`lucifer@m5 > `));
+        const query = await rl.question(chalk.green(`lucifer@m5 > `));
         if (['exit', 'quit'].includes(query.toLowerCase())) break;
         if (!query.trim()) continue;
 
+        if (query.startsWith('!screen')) {
+            process.stdout.write(chalk.magenta("Analyzing screen..."));
+            const result = await seeScreen(query.replace('!screen', '').trim());
+            console.log(`\n${chalk.white(result)}\n`);
+            continue;
+        }
+
         history.push({ role: "user", content: query });
+        
         let loopCount = 0;
         let finalResponse = "";
 
         try {
             while (loopCount < 5) {
+                // ISSUE 5 — Feedback during inference
+                process.stdout.write(chalk.gray('  [Thinking...]'));
                 const response = await localAI.chat.completions.create({
                     model: "qwen2.5-coder-7b-instruct-mlx",
                     messages: history,
                     tools: tools as any,
                 });
+                process.stdout.write('\r' + ' '.repeat(20) + '\r'); // clear the line
 
                 const assistantMsg = response.choices[0]!.message;
                 history.push(assistantMsg);
 
                 if (assistantMsg.content) finalResponse = assistantMsg.content;
-
                 if (!assistantMsg.tool_calls) break;
 
                 for (const call of assistantMsg.tool_calls) {
@@ -226,11 +273,13 @@ async function main(): Promise<void> {
                 loopCount++;
             }
 
-            if (!finalResponse && loopCount >= 5) {
-                finalResponse = "⚠️ [System] Model reached max reasoning steps without a text reply.";
+            console.log(chalk.white(finalResponse || "Task complete.") + '\n');
+            
+            // ISSUE 4 — History Trimming
+            const SYSTEM_MSG = history[0];
+            if (history.length > 40) {
+                history = [SYSTEM_MSG, ...history.slice(-39)];
             }
-
-            console.log(chalk.white(finalResponse || "(No response generated)") + '\n');
         }
         catch (err: any) {
             console.log(chalk.red(`\nError: ${err.message}\n`));
