@@ -23,35 +23,36 @@ In Phase 2, we decoupled "Reasoning/Coding" from "Vision". By moving the main br
 
 ---
 
-# 🛡️ Lucifer Evolution: Phase 3 (Hardening & Refinement)
+# 🛡️ Lucifer Evolution: Phase 3 (Final Hardening & v4.2 Release)
 
 In Phase 3, we transitioned from a prototype to a production-grade tool by closing the gap between documentation and implementation.
 
 ## 📋 Evolution Summary
 The focus was on **Reliability, Security, and UX**. We implemented the missing features from the README and hardened the core engine against common agentic failure modes.
 
-## 🛠 Feature Realization (v4.1)
-| Feature | Status in v3.5 | Status in v4.1 (Hardened) |
+## 🛠 Feature Realization (v4.2)
+| Feature | Status in v3.5 | Status in v4.2 (Final) |
 | :--- | :--- | :--- |
-| **Vision Bridge** | Initialized but unused | **Fully Functional** (`!screen` command) |
+| **Vision Bridge** | Initialized but unused | **Fully Functional** (v1.x SDK Pattern) |
 | **Security Rails** | Documented only | **Enforced** (Blocked `sudo`, `rm -rf`, etc.) |
-| **Rollback Logic** | Backups created | **Active** (`--rollback` flag restores state) |
-| **Memory Control** | Unbounded Growth | **FIFO Sliding Window** (Trims at 40 msgs) |
-| **UX Feedback** | Silent reasoning | **Live Thinking Indicator** (`Thinking...`) |
+| **Rollback Logic** | Backups created | **Active** (`--rollback` flag) |
+| **Memory Control** | Unbounded Growth | **FIFO Sliding Window** (Finally-block) |
+| **UX Feedback** | Silent reasoning | **Live Thinking Indicator** |
+| **Evolution** | Hollow flag | **Actionable** (System Prompt Branching) |
 
 ## 🚀 Phase 3: Technical Refinements
 
-### 1. Security Guard Rails
-- Hardcoded a block-list of high-risk shell commands.
-- Returns a clean error message to the model if it attempts a privileged action.
+### 1. SDK Synchronization
+- Upgraded the Vision logic to use the new `@google/genai` v1.x constructor and `generateContent` method.
+- Resolved runtime crashes in `seeScreen()`.
 
-### 2. History Trimming
-- Implemented a sliding window approach that preserves the system prompt while discarding old context.
-- Prevents the context window overflow that would otherwise crash local inference.
+### 2. History & Persistence
+- Moved history trimming to a `finally` block to ensure context safety even after model errors.
+- Standardized the Sliding Window at 40 messages to balance memory and context.
 
-### 3. Dynamic Path Resolution
-- Replaced hardcoded `/Users/lucifer` paths with `import.meta.url`.
-- Lucifer now detects its home folder automatically, making the codebase portable and robust.
+### 3. Portable Infrastructure
+- Removed all hardcoded `/Users/lucifer` paths.
+- Implemented `import.meta.url` for dynamic root detection.
 
 ## 🏃 How to Run the Current Version
 1. **Ensure LM Studio is running** with Qwen 2.5 Coder 7B.
@@ -61,4 +62,4 @@ The focus was on **Reliability, Security, and UX**. We implemented the missing f
    ```
 
 ---
-**Status:** Phase 3 Complete. Lucifer is now a stable, secure, and fully documented professional tool.
+**Status:** Release v4.2 Complete. Lucifer is now a stable, secure, and world-class local assistant.

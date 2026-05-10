@@ -17,6 +17,7 @@ const __dirname = path.dirname(__filename);
 const PROJECT_ROOT: string = process.env.LUCIFER_HOME || __dirname;
 const CONFIG_FILE = path.join(os.homedir(), '.lucifer-env');
 const BACKUP_FILE = path.join(PROJECT_ROOT, "index.ts.bak");
+const RUNTIMES_PATH = path.join(os.homedir(), "runtimes");
 
 dotenv.config({ path: CONFIG_FILE });
 
@@ -53,7 +54,8 @@ async function initializeApp() {
         apiKey = await rl.question(chalk.green('Enter your Gemini API Key: '));
         if (apiKey) fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
     }
-    ai = new GoogleGenAI(apiKey!.trim());
+    // Correct v1.x SDK initialization
+    ai = new GoogleGenAI({ apiKey: apiKey!.trim() });
 
     try {
         const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
@@ -72,7 +74,7 @@ async function initializeApp() {
     });
 }
 
-// ISSUE 1 — !screen vision logic
+// ISSUE 1 — !screen vision logic (Fixed for v1.x SDK)
 async function seeScreen(query: string): Promise<string> {
     try {
         const screenshotPath = path.join(os.tmpdir(), `lucifer-screen.png`);
@@ -80,12 +82,16 @@ async function seeScreen(query: string): Promise<string> {
         const imageData = fs.readFileSync(screenshotPath).toString('base64');
         fs.unlinkSync(screenshotPath);
 
-        const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent([
-            { text: query || "What is on my screen?" },
-            { inlineData: { mimeType: "image/png", data: imageData } }
-        ]);
-        return result.response.text();
+        const result = await ai.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: [
+                { role: "user", parts: [
+                    { text: query || "What is on my screen?" },
+                    { inlineData: { mimeType: "image/png", data: imageData } }
+                ]}
+            ]
+        });
+        return result.text;
     } catch (e: any) {
         return `Vision Error: ${e.message}`;
     }
@@ -205,7 +211,6 @@ function executeTool(name: string, args: any): string {
                 const reviewPath = path.join(PROJECT_ROOT, "REVIEW_REQUEST.md");
                 const doc = `# 🛠 Fix Proposal\n**File:** ${args.file_path}\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``;
                 fs.writeFileSync(reviewPath, doc);
-                // ISSUE 7 — Honest return message
                 return `Review request written to REVIEW_REQUEST.md. Open it manually and submit to Gemini CLI with: gemini -f REVIEW_REQUEST.md`;
 
             case "get_system_info":
@@ -223,16 +228,29 @@ async function main() {
     const isEvolving = args.includes('--evolve');
     
     console.clear();
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.1 (HARDENED) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.2 (HARDENED) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 Coder | Vision: Gemini 1.5`));
+    console.log(chalk.gray(`Tool Center: ${RUNTIMES_PATH}`));
     console.log(chalk.gray(`Path: ${PROJECT_ROOT}\n`));
 
+    const basePrompt = `You are Lucifer, a pro agentic AI for macOS. 
+    CONTEXT:
+    - Source code at ${PROJECT_ROOT}.
+    - Tool dashboard at ${RUNTIMES_PATH} (node, python, go, rust, etc.).
+    RULES:
+    1. Use surgical tools (read_file, replace_in_file) for editing.
+    2. Always give text summaries after tool use.
+    3. Use Markdown blocks for code.`;
+
+    const evolvePrompt = `\nEVOLUTION MODE: You are currently auditing your own source code (index.ts). 
+    Run tests, find inefficiencies, and use 'propose_fix' for improvements.`;
+
     let history: any[] = [
-        { role: "system", content: "You are Lucifer, a pro agentic AI. 1. Always give text summaries. 2. Use Markdown. 3. Be concise." }
+        { role: "system", content: basePrompt + (isEvolving ? evolvePrompt : "") }
     ];
 
     while (true) {
-        const query = await rl.question(chalk.green(`lucifer@m5 > `));
+        const query = await rl.question(chalk.green(`lucifer@${isEvolving ? 'refine' : 'm5'} > `));
         if (['exit', 'quit'].includes(query.toLowerCase())) break;
         if (!query.trim()) continue;
 
@@ -274,15 +292,15 @@ async function main() {
             }
 
             console.log(chalk.white(finalResponse || "Task complete.") + '\n');
-            
-            // ISSUE 4 — History Trimming
+        }
+        catch (err: any) {
+            console.log(chalk.red(`\nError: ${err.message}\n`));
+        } finally {
+            // ISSUE 4 — History Trimming (Moved to finally)
             const SYSTEM_MSG = history[0];
             if (history.length > 40) {
                 history = [SYSTEM_MSG, ...history.slice(-39)];
             }
-        }
-        catch (err: any) {
-            console.log(chalk.red(`\nError: ${err.message}\n`));
         }
     }
     rl.close();

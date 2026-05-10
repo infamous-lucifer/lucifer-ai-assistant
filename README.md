@@ -1,18 +1,19 @@
-# 👹 Lucifer AI Assistant (Hybrid v3.5)
+# 👹 Lucifer AI Assistant (Hybrid v4.2)
 
 **Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS (optimized for Apple Silicon M5). It combines the lightning-fast logic of a local model with the advanced visual capabilities of the Gemini API.
 
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 1.5 Flash** for vision tasks.
-- **System Agency:** Lucifer can run terminal commands, manage files, and check system health (battery, uptime) directly.
+- **System Agency:** Lucifer can run terminal commands, manage files, and check system health directly.
+- **Vision Ready:** Built-in `!screen` command to analyze your workspace using Gemini Vision.
 - **Surgical Precision:** Uses specialized tools to edit specific lines of code without overwriting entire files.
-- **Self-Correction Loop:** Features an `--evolve` mode where the assistant audits its own code and proposes improvements for "Senior Review."
-- **Dashboard Aware:** Integrated with a centralized `~/runtimes` folder for reliable tool execution.
+- **Self-Correction Loop:** Features an `--evolve` mode where the assistant audits its own code and proposes improvements for review.
+- **Command Center Aware:** Integrated with a centralized `~/runtimes` folder for reliable tool execution.
 
 ## 🛠 Project Structure
 - `index.ts`: The main entry point containing the agentic loop and tool definitions.
-- `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v3.5.
-- `package.json`: Project configuration and dependencies (OpenAI, Google GenAI, Chalk).
+- `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.2.
+- `package.json`: Project configuration and dependencies.
 
 ## 🏃 Getting Started
 
@@ -21,7 +22,7 @@
 2. **Model:** `qwen2.5-coder-7b-instruct-mlx` loaded in LM Studio.
 3. **API Key:** A Gemini API key (stored in `~/.lucifer-env`) for Vision tasks.
 
-### Installation
+### Installation & Build
 ```bash
 # Clone the repository
 git clone https://github.com/infamous-lucifer/lucifer-ai-assistant.git
@@ -29,17 +30,20 @@ cd lucifer-ai-assistant
 
 # Install dependencies
 npm install
+
+# Rebuild (Recommended after cloning)
+npm run build
 ```
 
 ### Usage
-Run the assistant from anywhere (if symlinked to your PATH):
+Run the assistant from anywhere:
 ```bash
 lucifer
 ```
 
 **Special Commands:**
 - `!screen [query]`: Take a screenshot and analyze it using Gemini Vision.
-- `--evolve`: Run in maintenance mode to improve Lucifer's own source code.
+- `--evolve`: Run in maintenance mode to audit and improve Lucifer's source code.
 - `--rollback`: Instantly restore the last stable version of the assistant.
 
 ## 📈 Version History
@@ -47,14 +51,13 @@ lucifer
 | Version | Milestone | Description |
 | :--- | :--- | :--- |
 | **v1.0** | Initial Release | Basic chat-only assistant with Gemini API. |
-| **v2.0** | Agency Phase | Added `run_command` and basic filesystem access. |
 | **v2.5** | Hybrid Leap | Integrated LM Studio & Qwen 2.5 Coder for local processing. |
-| **v3.0** | Precision Phase | Added surgical tools (`replace_in_file`) and range-based reading. |
-| **v3.3** | Evolution Loop | Created the `propose_fix` workflow with Gemini CLI as Senior Reviewer. |
-| **v3.5** | Responsiveness | Optimized loops for M5 chip and improved error feedback. |
+| **v3.5** | Precision Phase | Added surgical tools (`replace_in_file`) and range-based reading. |
+| **v4.1** | Hardening | Implemented Guard Rails, Rollback, and History Trimming. |
+| **v4.2** | Final Polish | Fixed v1.x SDK Vision bugs, restored Evolve logic, and standardized paths. |
 
 ## 🛡 Security & Safety
-- **Guard Rails:** Hardcoded blocks for dangerous commands (e.g., `rm -rf /`, `sudo`).
+- **Guard Rails:** Hardcoded blocks for dangerous commands (e.g., `rm -rf /`, `sudo`, `mkfs`).
 - **Privacy:** 100% of your code and terminal data stays local. Only screenshots are sent to Gemini API.
 - **Human-in-the-Loop:** All evolution proposals require manual approval before implementation.
 
