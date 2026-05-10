@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import chalk from 'chalk';
 export declare const deps: {
     fs: {
         existsSync: typeof fs.existsSync;
@@ -16,5 +17,15 @@ export declare function applyEditFileRange(fileText: string, startLine: number, 
     error: string;
 };
 export declare function showVisualDiff(oldText: string, newText: string, fileName: string): void;
+export declare function truncateOutput(text: string, maxChars?: number): string;
+export declare class Spinner {
+    private message;
+    private timer;
+    private frames;
+    private currentFrame;
+    constructor(message: string);
+    start(): void;
+    stop(finalMessage?: string, color?: typeof chalk.Color): void;
+}
 export declare function pruneHistory(history: any[], maxLength: number): any[];
 export declare function getLogsToDelete(logs: string[], maxLogs: number): string[];

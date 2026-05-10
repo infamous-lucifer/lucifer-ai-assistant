@@ -364,3 +364,40 @@ The core engine was hardened with **Pre-Execution Guards** (Validator) and **Sta
 
 ---
 **Status:** Release v7.1 Complete. Lucifer is now the most stable, secure, and industrially-hardened local agent available.
+
+# 🚀 Lucifer Evolution: Phase 13 (The Resilient Core & v8.0 Production Reliability)
+
+In Phase 13, we reached "Production Reliability." We addressed the remaining architectural vulnerabilities that could cause crashes or reasoning failures on local hardware, specifically focusing on context management and loop stability.
+
+## 📋 Evolution Summary
+The engine was hardened with **Context Protection** (truncation), **Loop Guarding** (duplicate call prevention), and **Memory Stability** (OOM-safe indexing). We also improved the user experience with native spinners and introduced safe, restricted macOS system control.
+
+## 🛠 Resilient Core (v8.0)
+| Feature | Status in v7.1 | Status in v8.0 (Final) |
+| :--- | :--- | :--- |
+| **Context Window** | Vulnerable to overflow | **Hardened via Output Truncation** |
+| **Loop Stability** | Thrashing risk | **Duplicate Call Guard (Hashed)** |
+| **Memory Safety** | OOM risk during indexing | **File-Size & Binary Guards** |
+| **User Interface** | Static/Blocking | **Interactive Native Spinners** |
+| **macOS Integration**| raw `run_command` | **Safelisted `control_macos` tool** |
+
+## 🚀 Phase 13: Key Implementations
+
+### 1. Context & Token Hardening
+- Implemented `truncateOutput` to cap all tool results (terminal output, file reads) at ~1500-2000 characters.
+- This prevents "Context Blowout" where a large command result would instantly exceed the 7B model's 4000-token limit and cause it to hallucinate.
+
+### 2. Autonomous Loop Protection
+- Added a `Duplicate Call Guard` that stringifies and hashes tool calls within a single reasoning turn.
+- If the model attempts the exact same failing action twice, Node.js intercepts it and returns a corrective error, forcing the model to change its approach rather than thrashing.
+
+### 3. Memory & Indexing Stability
+- Hardened the `buildIndex` function with strict OOM guards. It now ignores files larger than 100KB and skips binary/data formats (zip, png, exe, etc.).
+- This ensures that local full-text search indexing remains lightning-fast and never crashes the system on larger codebases.
+
+### 4. Interactive UX & macOS Control
+- Replaced static "Thinking..." text with a dynamic frame-based terminal spinner for a modern, responsive feel.
+- Introduced `control_macos`, a safe tool that executes restricted AppleScript commands (Dark Mode, Volume, active window) through a hardcoded whitelist, providing system power without the risk of raw script injection.
+
+---
+**Status:** Release v8.0 Complete. Lucifer is now a resilient, high-performance, and truly professional macOS developer partner.

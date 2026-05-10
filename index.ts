@@ -21,6 +21,8 @@ import {
     isDangerousCommand,
     applyEditFileRange,
     showVisualDiff,
+    truncateOutput,
+    Spinner,
     pruneHistory,
     getLogsToDelete
 } from './utils.js';
@@ -91,7 +93,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v7.1 (INDUSTRIAL CORE) — Quick Reference ===
+=== LUCIFER v8.0 (RESILIENT CORE) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -150,8 +152,14 @@ async function buildIndex() {
 
     const files = execSync(`find "${PROJECT_ROOT}" -maxdepth 3 -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/dist/*' -type f`, { encoding: 'utf-8' }).split('\n').filter(Boolean);
     
+    // Step 1 Audit: Memory Leak & OOM Guard (Indexing)
     const documents = files.map((f, i) => {
         try {
+            const stats = fs.statSync(f);
+            // Skip files > 100KB or common binary extensions
+            if (stats.size > 100 * 1024) return null;
+            if (/\.(png|jpg|jpeg|gif|pdf|zip|tar|gz|exe|dll|so|o|db|sqlite|bin)$/i.test(f)) return null;
+
             return { id: i, path: path.relative(PROJECT_ROOT, f), content: fs.readFileSync(f, 'utf-8') };
         } catch (e) { return null; }
     }).filter(Boolean);
@@ -259,6 +267,7 @@ interface SearchWebArgs { query: string; }
 interface SemanticSearchArgs { query: string; }
 interface ListFilesArgs { path?: string; }
 interface GetCommandHelpArgs { command: string; }
+interface ControlMacosArgs { action: "get_active_window" | "toggle_dark_mode" | "get_volume" | "set_volume_50" | "list_running_apps" | "empty_trash"; }
 interface SearchCodebaseArgs { search_term: string; path: string; }
 
 let toolsUsed: string[] = [];
@@ -281,13 +290,17 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 const approved = await rl.question(chalk.yellow(`  Type 'y' to execute: `));
                 if (approved.toLowerCase() !== 'y') return "Execution cancelled by user.";
                 
-                console.log(chalk.yellow(`  [Action] Executing (Async)...`));
+                const spinner = new Spinner(`Executing: ${args.command}`);
+                spinner.start();
                 try {
                     // Non-blocking execution with a strict 30s timeout
                     const { stdout, stderr } = await execAsync(args.command, { timeout: 30000 });
-                    return `STDOUT:\n${stdout}\nSTDERR:\n${stderr}`;
+                    spinner.stop("Command executed.");
+                    // Step 2 Audit: Context Window Hardening
+                    return truncateOutput(`STDOUT:\n${stdout}\nSTDERR:\n${stderr}`, 1500);
                 } catch (e: any) {
-                    return `Error (Exit Code ${e.code || 'Timeout'}):\nSTDOUT: ${e.stdout || ''}\nSTDERR: ${e.stderr || ''}`;
+                    spinner.stop("Command failed.", 'red');
+                    return truncateOutput(`Error (Exit Code ${e.code || 'Timeout'}):\nSTDOUT: ${e.stdout || ''}\nSTDERR: ${e.stderr || ''}`, 1500);
                 }
             }
             case "search_web": {
@@ -298,10 +311,29 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                     const ddgrPath = path.join(RUNTIMES_PATH, "bin/ddgr");
                     const result = execFileSync(ddgrPath, ["--json", "-n", "3", args.query], { encoding: 'utf-8' });
                     const results = JSON.parse(result);
-                    return results.map((r: any) => `[${r.title}](${r.url})\n${r.abstract}`).join('\n\n');
+                    // Step 2 Audit: Truncate web results
+                    return truncateOutput(results.map((r: any) => `[${r.title}](${r.url})\n${r.abstract}`).join('\n\n'), 1500);
                 } catch (e: any) {
                     return `Web Search Error: ${e.message}. Ensure 'ddgr' is synchronized in your runtimes folder.`;
                 }
+            }
+            case "control_macos": {
+                const args = rawArgs as Partial<ControlMacosArgs>;
+                if (!args.action) return "Error: Missing action.";
+                console.log(chalk.yellow(`  [Action] Controlling macOS: ${args.action}`));
+                const scripts: Record<string, string> = {
+                    "get_active_window": 'tell application "System Events" to get name of first process whose frontmost is true',
+                    "toggle_dark_mode": 'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode',
+                    "get_volume": 'output volume of (get volume settings)',
+                    "set_volume_50": 'set volume output volume 50',
+                    "list_running_apps": 'tell application "System Events" to get name of every process whose background only is false',
+                    "empty_trash": 'tell application "Finder" to empty trash'
+                };
+                try {
+                    const script = scripts[args.action];
+                    if (!script) return `Error: Action '${args.action}' not safelisted.`;
+                    return execFileSync('osascript', ['-e', script], { encoding: 'utf-8' }).trim();
+                } catch (e: any) { return `macOS Control Error: ${e.message}`; }
             }
             case "list_files": {
                 const args = rawArgs as Partial<ListFilesArgs>;
@@ -349,9 +381,19 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                     let lines = fileContent.split('\n');
                     const start = args.start_line ? Math.max(1, args.start_line) : 1;
                     const end = args.end_line ? Math.min(lines.length, args.end_line) : lines.length;
-                    lines = lines.slice(start - 1, end);
-                    // Force line numbers for model precision
-                    return lines.map((line, i) => `[Line ${start + i}] ${line}`).join('\n');
+                    
+                    // Step 2 Audit: Context-Aware Truncation Hint
+                    let wasTruncated = false;
+                    if (!args.start_line && !args.end_line && lines.length > 300) {
+                        lines = lines.slice(0, 300);
+                        wasTruncated = true;
+                    } else {
+                        lines = lines.slice(start - 1, end);
+                    }
+                    
+                    let outputContent = lines.map((line, i) => `[Line ${start + i}] ${line}`).join('\n');
+                    if (wasTruncated) outputContent += "\n\n... [FILE TRUNCATED]. Use start_line/end_line to read specific chunks.";
+                    return outputContent;
                 } catch (e: any) { return `Read Error: ${e.message}`; }
             }
             case "search_codebase": {
@@ -368,7 +410,8 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 try {
                     const searchPath = resolveFilePath(args.path, ALLOWED_ROOTS);
                     const stdout = execFileSync('grep', ['-nriI', args.search_term, searchPath], { encoding: 'utf-8', timeout: 15000 });
-                    return stdout ? `Search Results (Max 50):\n${stdout.split('\n').slice(0, 50).join('\n')}` : "No matches found.";
+                    // Step 2 Audit: Truncate search results
+                    return truncateOutput(stdout || "No matches found.", 1500);
                 } catch (e: any) {
                     if (e.status === 1) return "No matches found.";
                     return `Search Error: ${e.message}`;
@@ -465,10 +508,11 @@ async function main() {
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
     const projectFolder = path.basename(PROJECT_ROOT);
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v7.1 (INDUSTRIAL CORE) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v8.0 (RESILIENT CORE) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: ~/${projectFolder}${gitContext}\n`));
+
 
     // Step 13 Audit: Quote PROJECT_ROOT
     const fileTree = execSync(`find "${PROJECT_ROOT}" -maxdepth 2 -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/dist/*' -type f | head -n 20`, { encoding: 'utf-8' })
@@ -562,8 +606,9 @@ async function main() {
                 process.stdout.write(chalk.blue(`Searching: ${searchQuery}...\n`));
                 const result = await executeTool("search_web", { query: searchQuery });
                 console.log(`\n${chalk.white(result)}\n`);
-                // Step 6 Audit: Injected as user role, marked as untrusted external data
-                history.push({ role: "user", content: `[SEARCH RESULT - UNTRUSTED EXTERNAL DATA]\nUser executed '!search ${searchQuery}'. Result:\n${result}` });
+                // Step 2 Audit: Truncate history injection
+                const truncatedResult = truncateOutput(result, 1000);
+                history.push({ role: "user", content: `[SEARCH RESULT - UNTRUSTED EXTERNAL DATA]\nUser executed '!search ${searchQuery}'. Result:\n${truncatedResult}` });
                 fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !search ${searchQuery}\n\n**Lucifer (Search Result):** ${result}\n\n---\n\n`);
                 continue;
             }
@@ -572,7 +617,8 @@ async function main() {
                 process.stdout.write(chalk.blue("Generating Deep System Report...\n"));
                 const result = await executeTool("get_deep_system_report", {});
                 console.log(`\n${chalk.white(result)}\n`);
-                history.push({ role: "system", content: `User executed '!report'. Result:\n${result}` });
+                // Step 2 Audit: Truncate history injection
+                history.push({ role: "system", content: `User executed '!report'. Result:\n${truncateOutput(result, 1000)}` });
                 fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !report\n\n**Lucifer (System Report):** ${result}\n\n---\n\n`);
                 continue;
             }
@@ -583,12 +629,12 @@ async function main() {
                 try {
                     const result = await executeTool("read_file", { path: readPath });
                     console.log(`\n${chalk.white(result)}\n`);
-                    history.push({ role: "system", content: `User executed '!read ${readPath}'. Content:\n${result}` });
+                    // Step 2 Audit: Truncate history injection
+                    history.push({ role: "system", content: `User executed '!read ${readPath}'. Content:\n${truncateOutput(result, 1500)}` });
                     fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !read ${readPath}\n\n**Lucifer (File Read):**\n${result}\n\n---\n\n`);
                 } catch (e: any) { console.log(chalk.red(`Error: ${e.message}`)); }
                 continue;
             }
-
             if (query === '!test') {
                 console.log(chalk.blue("Running project test suite...\n"));
                 try {
@@ -647,12 +693,15 @@ async function main() {
             
             let loopCount = 0;
             let finalResponse = "";
+            const toolCallHistory = new Set<string>(); // Step 2 Audit: Duplicate Call Guard
 
             while (loopCount < 5) {
                 if (!localAI) throw new Error("Local AI (LM Studio) not initialized.");
-                process.stdout.write(chalk.gray('  [Thinking...]'));
+                const thinking = new Spinner("Lucifer is thinking...");
+                thinking.start();
+                
                 const stream = await localAI.chat.completions.create({ model: "qwen2.5-coder-7b-instruct-mlx", messages: history, tools: tools, stream: true });
-                process.stdout.write('\r' + ' '.repeat(20) + '\r');
+                thinking.stop();
 
                 let assistantMsgContent = "";
                 let toolCalls: any[] = [];
@@ -685,6 +734,14 @@ async function main() {
                 const validToolCalls = assistantMsg.tool_calls.filter(Boolean);
 
                 for (const call of validToolCalls) {
+                    // Step 2 Audit: Duplicate Call Guard
+                    const callHash = `${call.function.name}:${call.function.arguments}`;
+                    if (toolCallHistory.has(callHash)) {
+                        history.push({ role: "tool", tool_call_id: call.id, content: "ERROR: You just tried this exact call and it failed or was redundant. Change your arguments or approach (e.g. read the file first)." });
+                        continue;
+                    }
+                    toolCallHistory.add(callHash);
+
                     let parsedArgs: unknown;
                     try {
                         parsedArgs = JSON.parse(call.function.arguments);

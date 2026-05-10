@@ -1,5 +1,5 @@
 {
-    "version": "7.1",
+    "version": "8.0",
     "dependencies": [
         {
             "name": "ddgr",
@@ -99,6 +99,24 @@
                         "new_content": { "type": "string", "description": "The exact new code to insert" }
                     },
                     "required": ["path", "start_line", "end_line", "new_content"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "control_macos",
+                "description": "Safely executes predefined macOS control commands via AppleScript.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": { 
+                            "type": "string", 
+                            "enum": ["get_active_window", "toggle_dark_mode", "get_volume", "set_volume_50", "list_running_apps", "empty_trash"],
+                            "description": "The macOS system action to perform"
+                        }
+                    },
+                    "required": ["action"]
                 }
             }
         },

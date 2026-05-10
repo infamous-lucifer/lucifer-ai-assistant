@@ -22174,7 +22174,7 @@ async function syncDependencies() {
 const args = process.argv.slice(2);
 function printHelp() {
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`
-=== LUCIFER v7.1 (INDUSTRIAL CORE) — Quick Reference ===
+=== LUCIFER v8.0 (RESILIENT CORE) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -22232,8 +22232,15 @@ async function buildIndex() {
         storeFields: ['path']
     });
     const files = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`find "${PROJECT_ROOT}" -maxdepth 3 -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/dist/*' -type f`, { encoding: 'utf-8' }).split('\n').filter(Boolean);
+    // Step 1 Audit: Memory Leak & OOM Guard (Indexing)
     const documents = files.map((f, i) => {
         try {
+            const stats = node_fs__WEBPACK_IMPORTED_MODULE_6___default().statSync(f);
+            // Skip files > 100KB or common binary extensions
+            if (stats.size > 100 * 1024)
+                return null;
+            if (/\.(png|jpg|jpeg|gif|pdf|zip|tar|gz|exe|dll|so|o|db|sqlite|bin)$/i.test(f))
+                return null;
             return { id: i, path: node_path__WEBPACK_IMPORTED_MODULE_7___default().relative(PROJECT_ROOT, f), content: node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(f, 'utf-8') };
         }
         catch (e) {
@@ -22380,14 +22387,18 @@ async function executeTool(name, rawArgs) {
                 const approved = await rl.question(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow(`  Type 'y' to execute: `));
                 if (approved.toLowerCase() !== 'y')
                     return "Execution cancelled by user.";
-                console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow(`  [Action] Executing (Async)...`));
+                const spinner = new _utils_js__WEBPACK_IMPORTED_MODULE_13__/* .Spinner */ .y$(`Executing: ${args.command}`);
+                spinner.start();
                 try {
                     // Non-blocking execution with a strict 30s timeout
                     const { stdout, stderr } = await execAsync(args.command, { timeout: 30000 });
-                    return `STDOUT:\n${stdout}\nSTDERR:\n${stderr}`;
+                    spinner.stop("Command executed.");
+                    // Step 2 Audit: Context Window Hardening
+                    return (0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .truncateOutput */ .Kx)(`STDOUT:\n${stdout}\nSTDERR:\n${stderr}`, 1500);
                 }
                 catch (e) {
-                    return `Error (Exit Code ${e.code || 'Timeout'}):\nSTDOUT: ${e.stdout || ''}\nSTDERR: ${e.stderr || ''}`;
+                    spinner.stop("Command failed.", 'red');
+                    return (0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .truncateOutput */ .Kx)(`Error (Exit Code ${e.code || 'Timeout'}):\nSTDOUT: ${e.stdout || ''}\nSTDERR: ${e.stderr || ''}`, 1500);
                 }
             }
             case "search_web": {
@@ -22399,10 +22410,34 @@ async function executeTool(name, rawArgs) {
                     const ddgrPath = node_path__WEBPACK_IMPORTED_MODULE_7___default().join(RUNTIMES_PATH, "bin/ddgr");
                     const result = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execFileSync)(ddgrPath, ["--json", "-n", "3", args.query], { encoding: 'utf-8' });
                     const results = JSON.parse(result);
-                    return results.map((r) => `[${r.title}](${r.url})\n${r.abstract}`).join('\n\n');
+                    // Step 2 Audit: Truncate web results
+                    return (0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .truncateOutput */ .Kx)(results.map((r) => `[${r.title}](${r.url})\n${r.abstract}`).join('\n\n'), 1500);
                 }
                 catch (e) {
                     return `Web Search Error: ${e.message}. Ensure 'ddgr' is synchronized in your runtimes folder.`;
+                }
+            }
+            case "control_macos": {
+                const args = rawArgs;
+                if (!args.action)
+                    return "Error: Missing action.";
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow(`  [Action] Controlling macOS: ${args.action}`));
+                const scripts = {
+                    "get_active_window": 'tell application "System Events" to get name of first process whose frontmost is true',
+                    "toggle_dark_mode": 'tell application "System Events" to tell appearance preferences to set dark mode to not dark mode',
+                    "get_volume": 'output volume of (get volume settings)',
+                    "set_volume_50": 'set volume output volume 50',
+                    "list_running_apps": 'tell application "System Events" to get name of every process whose background only is false',
+                    "empty_trash": 'tell application "Finder" to empty trash'
+                };
+                try {
+                    const script = scripts[args.action];
+                    if (!script)
+                        return `Error: Action '${args.action}' not safelisted.`;
+                    return (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execFileSync)('osascript', ['-e', script], { encoding: 'utf-8' }).trim();
+                }
+                catch (e) {
+                    return `macOS Control Error: ${e.message}`;
                 }
             }
             case "list_files": {
@@ -22461,9 +22496,19 @@ async function executeTool(name, rawArgs) {
                     let lines = fileContent.split('\n');
                     const start = args.start_line ? Math.max(1, args.start_line) : 1;
                     const end = args.end_line ? Math.min(lines.length, args.end_line) : lines.length;
-                    lines = lines.slice(start - 1, end);
-                    // Force line numbers for model precision
-                    return lines.map((line, i) => `[Line ${start + i}] ${line}`).join('\n');
+                    // Step 2 Audit: Context-Aware Truncation Hint
+                    let wasTruncated = false;
+                    if (!args.start_line && !args.end_line && lines.length > 300) {
+                        lines = lines.slice(0, 300);
+                        wasTruncated = true;
+                    }
+                    else {
+                        lines = lines.slice(start - 1, end);
+                    }
+                    let outputContent = lines.map((line, i) => `[Line ${start + i}] ${line}`).join('\n');
+                    if (wasTruncated)
+                        outputContent += "\n\n... [FILE TRUNCATED]. Use start_line/end_line to read specific chunks.";
+                    return outputContent;
                 }
                 catch (e) {
                     return `Read Error: ${e.message}`;
@@ -22482,7 +22527,8 @@ async function executeTool(name, rawArgs) {
                 try {
                     const searchPath = (0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
                     const stdout = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execFileSync)('grep', ['-nriI', args.search_term, searchPath], { encoding: 'utf-8', timeout: 15000 });
-                    return stdout ? `Search Results (Max 50):\n${stdout.split('\n').slice(0, 50).join('\n')}` : "No matches found.";
+                    // Step 2 Audit: Truncate search results
+                    return (0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .truncateOutput */ .Kx)(stdout || "No matches found.", 1500);
                 }
                 catch (e) {
                     if (e.status === 1)
@@ -22583,7 +22629,7 @@ async function main() {
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan('─'.repeat(50)) + '\n');
     const projectFolder = node_path__WEBPACK_IMPORTED_MODULE_7___default().basename(PROJECT_ROOT);
-    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v7.1 (INDUSTRIAL CORE) ===`));
+    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v8.0 (RESILIENT CORE) ===`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Tool Center: (Abstracted)`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Path: ~/${projectFolder}${gitContext}\n`));
@@ -22672,8 +22718,9 @@ async function main() {
                 process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_9___default().blue(`Searching: ${searchQuery}...\n`));
                 const result = await executeTool("search_web", { query: searchQuery });
                 console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_9___default().white(result)}\n`);
-                // Step 6 Audit: Injected as user role, marked as untrusted external data
-                history.push({ role: "user", content: `[SEARCH RESULT - UNTRUSTED EXTERNAL DATA]\nUser executed '!search ${searchQuery}'. Result:\n${result}` });
+                // Step 2 Audit: Truncate history injection
+                const truncatedResult = (0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .truncateOutput */ .Kx)(result, 1000);
+                history.push({ role: "user", content: `[SEARCH RESULT - UNTRUSTED EXTERNAL DATA]\nUser executed '!search ${searchQuery}'. Result:\n${truncatedResult}` });
                 node_fs__WEBPACK_IMPORTED_MODULE_6___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !search ${searchQuery}\n\n**Lucifer (Search Result):** ${result}\n\n---\n\n`);
                 continue;
             }
@@ -22681,7 +22728,8 @@ async function main() {
                 process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_9___default().blue("Generating Deep System Report...\n"));
                 const result = await executeTool("get_deep_system_report", {});
                 console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_9___default().white(result)}\n`);
-                history.push({ role: "system", content: `User executed '!report'. Result:\n${result}` });
+                // Step 2 Audit: Truncate history injection
+                history.push({ role: "system", content: `User executed '!report'. Result:\n${(0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .truncateOutput */ .Kx)(result, 1000)}` });
                 node_fs__WEBPACK_IMPORTED_MODULE_6___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !report\n\n**Lucifer (System Report):** ${result}\n\n---\n\n`);
                 continue;
             }
@@ -22694,7 +22742,8 @@ async function main() {
                 try {
                     const result = await executeTool("read_file", { path: readPath });
                     console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_9___default().white(result)}\n`);
-                    history.push({ role: "system", content: `User executed '!read ${readPath}'. Content:\n${result}` });
+                    // Step 2 Audit: Truncate history injection
+                    history.push({ role: "system", content: `User executed '!read ${readPath}'. Content:\n${(0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .truncateOutput */ .Kx)(result, 1500)}` });
                     node_fs__WEBPACK_IMPORTED_MODULE_6___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !read ${readPath}\n\n**Lucifer (File Read):**\n${result}\n\n---\n\n`);
                 }
                 catch (e) {
@@ -22764,12 +22813,14 @@ async function main() {
             }
             let loopCount = 0;
             let finalResponse = "";
+            const toolCallHistory = new Set(); // Step 2 Audit: Duplicate Call Guard
             while (loopCount < 5) {
                 if (!localAI)
                     throw new Error("Local AI (LM Studio) not initialized.");
-                process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray('  [Thinking...]'));
+                const thinking = new _utils_js__WEBPACK_IMPORTED_MODULE_13__/* .Spinner */ .y$("Lucifer is thinking...");
+                thinking.start();
                 const stream = await localAI.chat.completions.create({ model: "qwen2.5-coder-7b-instruct-mlx", messages: history, tools: tools, stream: true });
-                process.stdout.write('\r' + ' '.repeat(20) + '\r');
+                thinking.stop();
                 let assistantMsgContent = "";
                 let toolCalls = [];
                 for await (const chunk of stream) {
@@ -22805,6 +22856,13 @@ async function main() {
                 // N-6: Sanitize array (filter gaps) before processing
                 const validToolCalls = assistantMsg.tool_calls.filter(Boolean);
                 for (const call of validToolCalls) {
+                    // Step 2 Audit: Duplicate Call Guard
+                    const callHash = `${call.function.name}:${call.function.arguments}`;
+                    if (toolCallHistory.has(callHash)) {
+                        history.push({ role: "tool", tool_call_id: call.id, content: "ERROR: You just tried this exact call and it failed or was redundant. Change your arguments or approach (e.g. read the file first)." });
+                        continue;
+                    }
+                    toolCallHistory.add(callHash);
                     let parsedArgs;
                     try {
                         parsedArgs = JSON.parse(call.function.arguments);
@@ -22854,13 +22912,15 @@ __webpack_async_result__();
 
 // EXPORTS
 __nccwpck_require__.d(__webpack_exports__, {
+  y$: () => (/* binding */ Spinner),
   wc: () => (/* binding */ applyEditFileRange),
   uN: () => (/* binding */ getLogsToDelete),
   o7: () => (/* binding */ isDangerousCommand),
   af: () => (/* binding */ isPathAllowed),
   FA: () => (/* binding */ pruneHistory),
   Q: () => (/* binding */ resolveFilePath),
-  x9: () => (/* binding */ showVisualDiff)
+  x9: () => (/* binding */ showVisualDiff),
+  Kx: () => (/* binding */ truncateOutput)
 });
 
 // UNUSED EXPORTS: deps
@@ -23265,14 +23325,45 @@ function showVisualDiff(oldText, newText, fileName) {
     });
     console.log(source_default().cyan('\n--- END DIFF ---\n'));
 }
+function truncateOutput(text, maxChars = 2000) {
+    if (text.length <= maxChars)
+        return text;
+    const half = Math.floor((maxChars - 50) / 2);
+    return `${text.substring(0, half)}\n\n... [TRUNCATED ${text.length - maxChars} CHARACTERS] ...\n\n${text.substring(text.length - half)}`;
+}
+class Spinner {
+    constructor(message) {
+        this.message = message;
+        this.timer = null;
+        this.frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+        this.currentFrame = 0;
+    }
+    start() {
+        process.stdout.write(source_default().gray(`  ${this.frames[0]} ${this.message}`));
+        this.timer = setInterval(() => {
+            this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+            process.stdout.write(`\r  ${source_default().cyan(this.frames[this.currentFrame])} ${source_default().gray(this.message)}`);
+        }, 80);
+    }
+    stop(finalMessage, color = 'green') {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
+        process.stdout.write('\r' + ' '.repeat(process.stdout.columns || 80) + '\r');
+        if (finalMessage) {
+            console.log(`  ${(source_default())[color]('✔')} ${source_default().gray(finalMessage)}`);
+        }
+    }
+}
 function pruneHistory(history, maxLength) {
-    if (history.length <= maxLength || history.length === 0)
+    if (history.length === 0)
+        return [];
+    if (history.length <= maxLength)
         return history;
     const systemPrompt = history[0];
     let pruned = history.slice(-(maxLength - 1));
     // Ensure we don't start with an orphaned tool response
-    // If the first message in our new slice is a 'tool' role, it means its 
-    // preceding 'assistant' (the one that made the call) was pruned.
     while (pruned.length > 0 && pruned[0].role === 'tool') {
         pruned.shift();
     }

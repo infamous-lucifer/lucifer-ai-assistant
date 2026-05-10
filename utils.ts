@@ -74,15 +74,47 @@ export function showVisualDiff(oldText: string, newText: string, fileName: strin
     console.log(chalk.cyan('\n--- END DIFF ---\n'));
 }
 
+export function truncateOutput(text: string, maxChars: number = 2000): string {
+    if (text.length <= maxChars) return text;
+    const half = Math.floor((maxChars - 50) / 2);
+    return `${text.substring(0, half)}\n\n... [TRUNCATED ${text.length - maxChars} CHARACTERS] ...\n\n${text.substring(text.length - half)}`;
+}
+
+export class Spinner {
+    private timer: NodeJS.Timeout | null = null;
+    private frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+    private currentFrame = 0;
+
+    constructor(private message: string) {}
+
+    start() {
+        process.stdout.write(chalk.gray(`  ${this.frames[0]} ${this.message}`));
+        this.timer = setInterval(() => {
+            this.currentFrame = (this.currentFrame + 1) % this.frames.length;
+            process.stdout.write(`\r  ${chalk.cyan(this.frames[this.currentFrame])} ${chalk.gray(this.message)}`);
+        }, 80);
+    }
+
+    stop(finalMessage?: string, color: typeof chalk.Color = 'green') {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
+        process.stdout.write('\r' + ' '.repeat(process.stdout.columns || 80) + '\r');
+        if (finalMessage) {
+            console.log(`  ${chalk[color]('✔')} ${chalk.gray(finalMessage)}`);
+        }
+    }
+}
+
 export function pruneHistory(history: any[], maxLength: number): any[] {
-    if (history.length <= maxLength || history.length === 0) return history;
+    if (history.length === 0) return [];
+    if (history.length <= maxLength) return history;
     
     const systemPrompt = history[0];
     let pruned = history.slice(-(maxLength - 1));
 
     // Ensure we don't start with an orphaned tool response
-    // If the first message in our new slice is a 'tool' role, it means its 
-    // preceding 'assistant' (the one that made the call) was pruned.
     while (pruned.length > 0 && pruned[0].role === 'tool') {
         pruned.shift();
     }
