@@ -70,6 +70,11 @@ STARTUP
 
 IN-SESSION COMMANDS
   !search <query>      Direct web research (DuckDuckGo)
+  !report              Instant deep system diagnostics
+  !read <path>         Quickly inspect a file
+  !test                Run project test suite (npm test)
+  !status              Check Lucifer environment health
+  !lms                 Check LM Studio server status
   !screen [query]      Analyze your screen with Gemini Vision
   !clip [query]        Analyze clipboard content
   exit / quit          End session
@@ -346,6 +351,47 @@ async function main() {
             const result = await executeTool("search_web", { query: searchQuery });
             console.log(`\n${chalk.white(result)}\n`);
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !search ${searchQuery}\n\n**Lucifer (Search Result):** ${result}\n\n---\n\n`);
+            continue;
+        }
+
+        if (query.startsWith('!report')) {
+            process.stdout.write(chalk.blue("Generating Deep System Report...\n"));
+            const result = await executeTool("get_deep_system_report", {});
+            console.log(`\n${chalk.white(result)}\n`);
+            fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !report\n\n**Lucifer (System Report):** ${result}\n\n---\n\n`);
+            continue;
+        }
+
+        if (query.startsWith('!read')) {
+            const readPath = query.replace('!read', '').trim();
+            if (!readPath) { console.log(chalk.yellow("Usage: !read <file path>")); continue; }
+            try {
+                const result = await executeTool("read_file", { path: readPath });
+                console.log(`\n${chalk.white(result)}\n`);
+                fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !read ${readPath}\n\n**Lucifer (File Read):**\n${result}\n\n---\n\n`);
+            } catch (e: any) { console.log(chalk.red(`Error: ${e.message}`)); }
+            continue;
+        }
+
+        if (query === '!test') {
+            console.log(chalk.blue("Running project test suite...\n"));
+            try {
+                execSync('npm test', { stdio: 'inherit', cwd: PROJECT_ROOT });
+            } catch (e) {}
+            continue;
+        }
+
+        if (query === '!status') {
+            await runStatusCheck();
+            continue;
+        }
+
+        if (query === '!lms') {
+            const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
+            console.log(chalk.blue("Checking LM Studio Status...\n"));
+            try {
+                execSync(`${lmsPath} status`, { stdio: 'inherit' });
+            } catch (e) { console.log(chalk.red("Error running lms command.")); }
             continue;
         }
 

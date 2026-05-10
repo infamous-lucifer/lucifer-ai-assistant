@@ -49,6 +49,11 @@ lucifer
 
 **Special Commands:**
 - `!search <query>`: Instantly search the web for technical info or documentation.
+- `!report`: Generate a deep system diagnostics report instantly.
+- `!read <path>`: Quickly inspect the content of any project file.
+- `!test`: Execute the full project unit test suite.
+- `!status`: Run a real-time health check on the Lucifer environment.
+- `!lms`: Check the current status of the local LM Studio server.
 - `!screen [query]`: Take a screenshot and analyze it using Gemini Vision.
 - `!clip [query]`: Analyze current clipboard content.
 - `--evolve`: Run in maintenance mode to audit and improve Lucifer's source code.

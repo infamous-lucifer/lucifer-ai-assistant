@@ -168,13 +168,14 @@ In Phase 7, we solved the "Obsolescence Problem." Previously, Lucifer was bound 
 ## 📋 Evolution Summary
 The system was refactored into the **Adaptive Core**. This architecture decouples logic (how to run) from data (what to run) via a centralized Manifest, while empowering the AI with autonomous research capabilities to fix its own errors in real-time.
 
-## 🛠 Adaptive Core (v5.0)
-| Feature | Status in v4.8 | Status in v5.0 (Final) |
+## 🛠 Adaptive Core (v5.1)
+| Feature | Status in v4.8 | Status in v5.1 (Final) |
 | :--- | :--- | :--- |
 | **Logic Storage** | Hardcoded in TypeScript | **Decoupled `lucifer-manifest.json`** |
 | **Error Handling** | Generic catch / Halt | **Stderr Capture & Comprehension** |
 | **Learning** | Static knowledge only | **Autonomous `search_web` Research** |
 | **Maintenance** | Manual code audit | **Dependency & System Audit Loop** |
+| **UX Efficiency** | Reasoning-only access | **Direct Shortcuts (`!search`, `!report`, `!test`, etc.)** |
 | **Resilience** | Brittle to command changes | **Dynamic Self-Healing Retry Loop** |
 
 ## 🚀 Phase 7: Key Implementations
@@ -188,7 +189,11 @@ The system was refactored into the **Adaptive Core**. This architecture decouple
 - Implemented a reasoning loop where Lucifer analyzes execution failures and uses the new `search_web` tool (via `ddgr`) to find updated syntax or documentation.
 - The assistant now repairs its own pathing or syntax errors before prompting the user for approval.
 
-### 3. Evolution 2.0
+### 3. Shortcut Expansion & Hardware Integration
+- Added high-efficiency direct commands (`!report`, `!read`, `!test`, `!status`, `!lms`) to provide instant hardware and tool access without model latency.
+- These shortcuts integrate directly with the Adaptive Core logic, ensuring session logs remain consistent regardless of how a tool is triggered.
+
+### 4. Evolution 2.0
 - Reimagined `--evolve` from a simple code auditor into a proactive system maintainer.
 - Added integration with terminal diagnostics (`npm outdated`) to identify system-level maintenance needs and propose manifest updates via `REVIEW_REQUEST.md`.
 
