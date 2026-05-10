@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import * as readline from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
+import { stdin as input, stdout as output, stdin } from 'node:process';
 import { execSync, execFileSync, exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs';
@@ -375,9 +375,16 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 if (!args.path) return "Error: Missing path.";
                 try {
                     const rPath = resolveFilePath(args.path, ALLOWED_ROOTS);
+
+                    // Step 3: Context Sentinel (Max 10KB check)
+                    const stats = fs.statSync(rPath);
+                    if (!args.start_line && !args.end_line && stats.size > 10 * 1024) {
+                        return `[Context Sentinel] Rejected: ${args.path} is too large (${(stats.size/1024).toFixed(1)}KB) for my local brain. Please use start_line/end_line to read specific chunks, or use Pipe mode: 'cat ${args.path} | lucifer "your prompt"'`;
+                    }
+
                     const fileContent = fs.readFileSync(rPath, 'utf-8');
                     verifiedReads.add(rPath); // Mark as read for editing lock
-                    
+
                     let lines = fileContent.split('\n');
                     const start = args.start_line ? Math.max(1, args.start_line) : 1;
                     const end = args.end_line ? Math.min(lines.length, args.end_line) : lines.length;
@@ -488,6 +495,48 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
 
 async function main() {
     await initializeApp(); 
+
+    // Step 1: Detect Mode (One-Shot or Stdin Pipe)
+    const isPiped = !stdin.isTTY;
+    const positionalArgs = args.filter(a => !a.startsWith('-'));
+    const oneShotQuery = positionalArgs.join(' ');
+
+    if (isPiped || oneShotQuery) {
+        let pipedData = "";
+        if (isPiped) {
+            // Read from pipe
+            const chunks = [];
+            for await (const chunk of stdin) chunks.push(chunk);
+            pipedData = Buffer.concat(chunks).toString('utf-8');
+        }
+
+        const fullPrompt = `${oneShotQuery}${pipedData ? '\n\nCONTEXT:\n' + pipedData : ''}`;
+        
+        if (!localAI) throw new Error("Local AI (LM Studio) not initialized.");
+        const spinner = new Spinner("Lucifer is processing...");
+        spinner.start();
+        
+        try {
+            const stream = await localAI.chat.completions.create({
+                model: "qwen2.5-coder-7b-instruct-mlx",
+                messages: [{ role: "user", content: fullPrompt }],
+                stream: true
+            });
+            spinner.stop();
+            console.log("");
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                process.stdout.write(content);
+            }
+            console.log("\n");
+            process.exit(0);
+        } catch (e: any) {
+            spinner.stop("Failed.", 'red');
+            console.error(chalk.red(`Error: ${e.message}`));
+            process.exit(1);
+        }
+    }
+
     const isEvolving = args.includes('--evolve');
     const SESSION_ID = new Date().toISOString().replace(/[:.]/g, '-');
     if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR);

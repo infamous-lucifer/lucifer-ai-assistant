@@ -22491,6 +22491,11 @@ async function executeTool(name, rawArgs) {
                     return "Error: Missing path.";
                 try {
                     const rPath = (0,_utils_js__WEBPACK_IMPORTED_MODULE_13__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
+                    // Step 3: Context Sentinel (Max 10KB check)
+                    const stats = node_fs__WEBPACK_IMPORTED_MODULE_6___default().statSync(rPath);
+                    if (!args.start_line && !args.end_line && stats.size > 10 * 1024) {
+                        return `[Context Sentinel] Rejected: ${args.path} is too large (${(stats.size / 1024).toFixed(1)}KB) for my local brain. Please use start_line/end_line to read specific chunks, or use Pipe mode: 'cat ${args.path} | lucifer "your prompt"'`;
+                    }
                     const fileContent = node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(rPath, 'utf-8');
                     verifiedReads.add(rPath); // Mark as read for editing lock
                     let lines = fileContent.split('\n');
@@ -22611,6 +22616,45 @@ async function executeTool(name, rawArgs) {
 }
 async function main() {
     await initializeApp();
+    // Step 1: Detect Mode (One-Shot or Stdin Pipe)
+    const isPiped = !node_process__WEBPACK_IMPORTED_MODULE_3__.stdin.isTTY;
+    const positionalArgs = args.filter(a => !a.startsWith('-'));
+    const oneShotQuery = positionalArgs.join(' ');
+    if (isPiped || oneShotQuery) {
+        let pipedData = "";
+        if (isPiped) {
+            // Read from pipe
+            const chunks = [];
+            for await (const chunk of node_process__WEBPACK_IMPORTED_MODULE_3__.stdin)
+                chunks.push(chunk);
+            pipedData = Buffer.concat(chunks).toString('utf-8');
+        }
+        const fullPrompt = `${oneShotQuery}${pipedData ? '\n\nCONTEXT:\n' + pipedData : ''}`;
+        if (!localAI)
+            throw new Error("Local AI (LM Studio) not initialized.");
+        const spinner = new _utils_js__WEBPACK_IMPORTED_MODULE_13__/* .Spinner */ .y$("Lucifer is processing...");
+        spinner.start();
+        try {
+            const stream = await localAI.chat.completions.create({
+                model: "qwen2.5-coder-7b-instruct-mlx",
+                messages: [{ role: "user", content: fullPrompt }],
+                stream: true
+            });
+            spinner.stop();
+            console.log("");
+            for await (const chunk of stream) {
+                const content = chunk.choices[0]?.delta?.content || "";
+                process.stdout.write(content);
+            }
+            console.log("\n");
+            process.exit(0);
+        }
+        catch (e) {
+            spinner.stop("Failed.", 'red');
+            console.error(chalk__WEBPACK_IMPORTED_MODULE_9___default().red(`Error: ${e.message}`));
+            process.exit(1);
+        }
+    }
     const isEvolving = args.includes('--evolve');
     const SESSION_ID = new Date().toISOString().replace(/[:.]/g, '-');
     if (!node_fs__WEBPACK_IMPORTED_MODULE_6___default().existsSync(LOGS_DIR))
