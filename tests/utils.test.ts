@@ -7,7 +7,7 @@ import {
     isPathAllowed,
     resolveFilePath,
     isDangerousCommand,
-    applyReplaceInFile,
+    applyEditFileRange,
     pruneHistory,
     getLogsToDelete,
     deps
@@ -197,85 +197,48 @@ describe('isDangerousCommand', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. applyReplaceInFile
+// 4. applyEditFileRange
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('applyReplaceInFile', () => {
+describe('applyEditFileRange', () => {
 
-    const fileText = `function hello() {\n    console.log("hello");\n}\n`;
+    const fileText = `line 1\nline 2\nline 3\nline 4\nline 5`;
 
     describe('successful replacement', () => {
-        test('replaces a string that appears exactly once', () => {
-            const result = applyReplaceInFile(fileText, '"hello"', '"world"');
+        test('replaces a single line', () => {
+            const result = applyEditFileRange(fileText, 2, 2, 'new line 2');
             expect(result.ok).toBe(true);
-            if (result.ok) expect(result.content).toContain('"world"');
+            if (result.ok) expect(result.content).toBe(`line 1\nnew line 2\nline 3\nline 4\nline 5`);
         });
 
-        test('does not affect other parts of the file', () => {
-            const result = applyReplaceInFile(fileText, '"hello"', '"world"');
-            if (result.ok) {
-                expect(result.content).toContain('function hello()');
-                expect(result.content).toContain('console.log');
-            }
+        test('replaces multiple lines with one line', () => {
+            const result = applyEditFileRange(fileText, 2, 4, 'new chunk');
+            expect(result.ok).toBe(true);
+            if (result.ok) expect(result.content).toBe(`line 1\nnew chunk\nline 5`);
         });
 
-        test('replaces only the first occurrence (standard string replace behavior)', () => {
-            const text = 'aaa';
-            const result = applyReplaceInFile('aXbXc', 'X', 'Y');
-            // This should fail the uniqueness check since X appears twice
-            expect(result.ok).toBe(false);
-            void text; // suppress unused warning
+        test('replaces multiple lines with multiple lines', () => {
+            const result = applyEditFileRange(fileText, 2, 3, 'new 2\nnew 3');
+            expect(result.ok).toBe(true);
+            if (result.ok) expect(result.content).toBe(`line 1\nnew 2\nnew 3\nline 4\nline 5`);
         });
     });
 
     describe('error cases', () => {
-        test('returns error when old_string is not found', () => {
-            const result = applyReplaceInFile(fileText, 'nonexistent string', 'replacement');
+        test('returns error for invalid range (out of bounds)', () => {
+            const result = applyEditFileRange(fileText, 1, 10, 'error');
             expect(result.ok).toBe(false);
-            if (!result.ok) expect(result.error).toBe('Error: Text not found.');
+            if (!result.ok) expect(result.error).toContain('Invalid line range');
         });
 
-        test('returns error when old_string appears twice', () => {
-            const text = 'foo bar foo';
-            const result = applyReplaceInFile(text, 'foo', 'baz');
-            expect(result.ok).toBe(false);
-            if (!result.ok) {
-                expect(result.error).toContain('2 times');
-                expect(result.error).toContain('specific string');
-            }
-        });
-
-        test('returns error when old_string appears three times with correct count', () => {
-            const text = 'x x x';
-            const result = applyReplaceInFile(text, 'x', 'y');
-            expect(result.ok).toBe(false);
-            if (!result.ok) expect(result.error).toContain('3 times');
-        });
-
-        test('returns error for empty old_string (appears everywhere)', () => {
-            // Every split on '' produces length > 2 for any non-empty string
-            const result = applyReplaceInFile('hello', '', 'x');
+        test('returns error for invalid range (start > end)', () => {
+            const result = applyEditFileRange(fileText, 5, 2, 'error');
             expect(result.ok).toBe(false);
         });
 
-        test('handles empty file text correctly', () => {
-            const result = applyReplaceInFile('', 'foo', 'bar');
+        test('returns error for 0 index', () => {
+            const result = applyEditFileRange(fileText, 0, 1, 'error');
             expect(result.ok).toBe(false);
-            if (!result.ok) expect(result.error).toBe('Error: Text not found.');
-        });
-    });
-
-    describe('edge cases', () => {
-        test('works with multiline old_string', () => {
-            const old = 'function hello() {\n    console.log("hello");\n}';
-            const result = applyReplaceInFile(fileText, old, '// removed');
-            expect(result.ok).toBe(true);
-        });
-
-        test('works when replacement contains the same text as the search', () => {
-            const result = applyReplaceInFile('hello world', 'hello', 'hello hello');
-            expect(result.ok).toBe(true);
-            if (result.ok) expect(result.content).toBe('hello hello world');
         });
     });
 
@@ -406,7 +369,7 @@ describe('tools schema', () => {
         },
         {
             name: 'replace_in_file',
-            requiredParams: ['path', 'old_string', 'new_string'],
+            requiredParams: ['path', 'start_line', 'end_line', 'new_code'],
         },
         {
             name: 'propose_fix',
@@ -415,6 +378,14 @@ describe('tools schema', () => {
         {
             name: 'get_deep_system_report',
             requiredParams: [],
+        },
+        {
+            name: 'search_web',
+            requiredParams: ['query'],
+        },
+        {
+            name: 'get_command_help',
+            requiredParams: ['command'],
         },
     ];
 
@@ -429,8 +400,8 @@ describe('tools schema', () => {
         expect(unique.size).toBe(requiredParams.length);
     });
 
-    test('there are exactly 5 tools defined', () => {
-        expect(expectedTools).toHaveLength(5);
+    test('there are exactly 7 tools defined', () => {
+        expect(expectedTools).toHaveLength(7);
     });
 
     test('all tool names are unique', () => {
@@ -442,30 +413,23 @@ describe('tools schema', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 8. Integration-style: applyReplaceInFile + isPathAllowed together
+// 8. Integration-style: applyEditFileRange + isPathAllowed together
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('replace_in_file integration contract', () => {
 
     test('a path traversal attempt is blocked before file content is ever read', () => {
         // isPathAllowed must return false for ../../etc/passwd
-        // so applyReplaceInFile is never called with that content
+        // so applyEditFileRange is never called with that content
         const maliciousPath = path.resolve(`${PROJECT_ROOT}/../../etc/passwd`);
         expect(isPathAllowed(maliciousPath, ALLOWED_ROOTS)).toBe(false);
     });
 
-    test('a valid in-root file + unique old_string produces a successful edit', () => {
+    test('a valid in-root file + valid range produces a successful edit', () => {
         const originalContent = 'const version = "4.7";';
-        const result = applyReplaceInFile(originalContent, '"4.7"', '"4.8"');
+        const result = applyEditFileRange(originalContent, 1, 1, 'const version = "5.3";');
         expect(result.ok).toBe(true);
-        if (result.ok) expect(result.content).toBe('const version = "4.8";');
-    });
-
-    test('a valid in-root file + ambiguous old_string is safely rejected', () => {
-        const content = 'foo()\nfoo()';
-        const result = applyReplaceInFile(content, 'foo()', 'bar()');
-        expect(result.ok).toBe(false);
-        if (!result.ok) expect(result.error).toContain('2 times');
+        if (result.ok) expect(result.content).toBe('const version = "5.3";');
     });
 
 });

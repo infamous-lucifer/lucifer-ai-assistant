@@ -59,15 +59,16 @@
             "type": "function",
             "function": {
                 "name": "replace_in_file",
-                "description": "Surgically edit text. Replaces exactly ONE occurrence. Provide unique old_string.",
+                "description": "Surgically replace a specific block of lines in a file.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "path": { "type": "string" },
-                        "old_string": { "type": "string" },
-                        "new_string": { "type": "string" }
+                        "start_line": { "type": "number", "description": "The first line to replace (1-indexed)" },
+                        "end_line": { "type": "number", "description": "The last line to replace" },
+                        "new_code": { "type": "string", "description": "The new code to insert" }
                     },
-                    "required": ["path", "old_string", "new_string"]
+                    "required": ["path", "start_line", "end_line", "new_code"]
                 }
             }
         },

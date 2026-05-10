@@ -1,9 +1,10 @@
-# 👹 Lucifer AI Assistant (Hybrid v5.2)
+# 👹 Lucifer AI Assistant (Hybrid v5.3)
 
-**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 5.2 introduces **Resiliency Plus**, hardening the core logic against context loss, orphaned tool messages, and autonomous loop drops.
+**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 5.3 introduces the **Local Optimized Core**, specifically refactored to empower 7B models on 16GB RAM hardware through deterministic logic and async execution.
 
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
+- **Local Optimized Core (v5.3):** Refactored for reliability on M5 Air hardware using line-based editing and non-blocking async commands.
 - **Adaptive Core (v5.0):** Real-time autonomous self-healing via `search_web` and comprehensive error analysis.
 - **Manifest-Driven:** Configuration (tools, security rules, paths) is decoupled into `lucifer-manifest.json` for easy updates.
 - **System Agency:** Lucifer can run terminal commands, manage files, and research updated syntax or docs online.
@@ -17,6 +18,7 @@
 | **v5.0** | Adaptive Core | Self-healing via search_web, captured stderr, manifest-driven configuration, and evolution audit. |
 | **v5.1** | Quick Search | Added `!search` shortcut for direct, non-agentic web research. |
 | **v5.2** | Resiliency Plus | Context-aware history pruning, synthetic history for shortcuts, and loop step warnings. |
+| **v5.3** | Local Optimized | Line-based editing, async shell execution, and deterministic evolution pipeline. |
 
 - `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
 - `package.json`: Project configuration and dependencies.

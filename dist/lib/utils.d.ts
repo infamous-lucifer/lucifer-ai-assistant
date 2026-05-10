@@ -8,7 +8,7 @@ export declare const deps: {
 export declare function isPathAllowed(filePath: string, allowedRoots: string[]): boolean;
 export declare function resolveFilePath(filePath: string, allowedRoots: string[]): string;
 export declare function isDangerousCommand(command: string, dangerPatterns: (string | RegExp)[]): boolean;
-export declare function applyReplaceInFile(fileText: string, oldString: string, newString: string): {
+export declare function applyEditFileRange(fileText: string, startLine: number, endLine: number, newCode: string): {
     ok: true;
     content: string;
 } | {

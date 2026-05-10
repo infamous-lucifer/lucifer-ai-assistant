@@ -36,12 +36,17 @@ export function isDangerousCommand(command: string, dangerPatterns: (string | Re
     });
 }
 
-export function applyReplaceInFile(fileText: string, oldString: string, newString: string): { ok: true, content: string } | { ok: false, error: string } {
-    const occurrences = fileText.split(oldString).length - 1;
-    if (occurrences === 0) return { ok: false, error: "Error: Text not found." };
-    if (occurrences > 1) return { ok: false, error: `Error: '${oldString}' found ${occurrences} times. Provide a more specific string to ensure a surgical edit.` };
+export function applyEditFileRange(fileText: string, startLine: number, endLine: number, newCode: string): { ok: true, content: string } | { ok: false, error: string } {
+    let lines = fileText.split('\n');
     
-    return { ok: true, content: fileText.replace(oldString, newString) };
+    if (startLine < 1 || endLine > lines.length || startLine > endLine) {
+        return { ok: false, error: `Error: Invalid line range (${startLine}-${endLine}). File has ${lines.length} lines.` };
+    }
+
+    // Splice array: remove (end - start + 1) lines at index (start - 1), insert new code
+    lines.splice(startLine - 1, endLine - startLine + 1, newCode);
+    
+    return { ok: true, content: lines.join('\n') };
 }
 
 export function pruneHistory(history: any[], maxLength: number): any[] {
