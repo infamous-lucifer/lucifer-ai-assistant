@@ -22200,7 +22200,7 @@ TOOLS (model can use these autonomously)
 async function runStatusCheck() {
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan('\n=== LUCIFER STATUS ===\n'));
     const keyExists = node_fs__WEBPACK_IMPORTED_MODULE_6___default().existsSync(CONFIG_FILE) && node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(CONFIG_FILE, 'utf-8').includes('API_KEY=');
-    console.log(keyExists ? chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ API Key found') : chalk__WEBPACK_IMPORTED_MODULE_9___default().red('✘ API Key missing — run: lucifer --setup'));
+    console.log(keyExists ? chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ API Key found 🔑') : chalk__WEBPACK_IMPORTED_MODULE_9___default().red('✘ API Key missing — run: lucifer --setup'));
     try {
         const status = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`${node_path__WEBPACK_IMPORTED_MODULE_7___default().join(node_os__WEBPACK_IMPORTED_MODULE_8___default().homedir(), '.lmstudio/bin/lms')} status`, { encoding: 'utf-8' });
         console.log(!status.includes('Server: OFF') ? chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ LM Studio server running') : chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow('⚠ LM Studio server OFF'));

@@ -127,7 +127,6 @@ async function runStatusCheck() {
     console.log(fs.existsSync(BACKUP_FILE) ? chalk.green('✔ Rollback backup available') : chalk.gray('– No backup yet'));
     console.log(fs.existsSync(RUNTIMES_PATH) ? chalk.green(`✔ Runtimes folder found`) : chalk.yellow(`⚠ Runtimes folder missing`));
     console.log('');
-}
 
 async function buildIndex() {
     console.log(chalk.magenta("  [Index] Building local codebase index..."));
@@ -640,7 +639,3 @@ async function main() {
             console.log(chalk.red(`\nError: ${err.message}\n`));
         }
     }
-    if (toolsUsed.length > 0) fs.appendFileSync(LOG_FILE, `\n## Session Summary\nTools used: ${[...new Set(toolsUsed)].join(', ')}\n`);
-    rl.close();
-}
-main().catch(console.error);
