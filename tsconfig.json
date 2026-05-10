@@ -40,5 +40,9 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "exclude": ["tests", "dist", "node_modules"]
+  "exclude": ["tests", "dist", "node_modules"],
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
 }
