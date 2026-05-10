@@ -364,12 +364,16 @@ describe('tools schema', () => {
             requiredParams: ['command'],
         },
         {
+            name: 'search_codebase',
+            requiredParams: ['search_term', 'path'],
+        },
+        {
             name: 'read_file',
             requiredParams: ['path'],
         },
         {
-            name: 'replace_in_file',
-            requiredParams: ['path', 'start_line', 'end_line', 'new_code'],
+            name: 'edit_file_lines',
+            requiredParams: ['path', 'start_line', 'end_line', 'new_content'],
         },
         {
             name: 'propose_fix',
@@ -400,8 +404,8 @@ describe('tools schema', () => {
         expect(unique.size).toBe(requiredParams.length);
     });
 
-    test('there are exactly 7 tools defined', () => {
-        expect(expectedTools).toHaveLength(7);
+    test('there are exactly 8 tools defined', () => {
+        expect(expectedTools).toHaveLength(8);
     });
 
     test('all tool names are unique', () => {

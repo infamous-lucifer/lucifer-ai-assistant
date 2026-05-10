@@ -22379,30 +22379,57 @@ async function executeTool(name, rawArgs) {
             }
             case "read_file": {
                 const args = rawArgs;
-                if (typeof args.path !== 'string')
-                    return "Error: Missing required field 'path'.";
-                const rPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
-                let content = node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(rPath, 'utf-8');
-                if (args.start_line || args.end_line) {
-                    const lines = content.split('\n');
-                    content = lines.slice((args.start_line || 1) - 1, args.end_line || lines.length).join('\n');
+                if (!args.path)
+                    return "Error: Missing path.";
+                try {
+                    const rPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
+                    const fileContent = node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(rPath, 'utf-8');
+                    let lines = fileContent.split('\n');
+                    const start = args.start_line ? Math.max(1, args.start_line) : 1;
+                    const end = args.end_line ? Math.min(lines.length, args.end_line) : lines.length;
+                    lines = lines.slice(start - 1, end);
+                    // Force line numbers for model precision
+                    return lines.map((line, i) => `[Line ${start + i}] ${line}`).join('\n');
                 }
-                return content;
+                catch (e) {
+                    return `Read Error: ${e.message}`;
+                }
             }
-            case "replace_in_file": {
+            case "search_codebase": {
                 const args = rawArgs;
-                if (!args.path || !args.start_line || !args.end_line || typeof args.new_code !== 'string') {
-                    return "Error: Missing path, start_line, end_line, or new_code.";
+                if (!args.search_term || !args.path)
+                    return "Error: Missing search_term or path.";
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow(`  [Action] Searching codebase for: ${args.search_term}`));
+                try {
+                    const searchPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
+                    const { stdout } = await execAsync(`grep -nriI "${args.search_term}" "${searchPath}" | head -n 50`, { timeout: 15000 });
+                    return stdout ? `Search Results (Max 50):\n${stdout}` : "No matches found.";
                 }
-                const edPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
-                if (edPath.includes("index.ts"))
-                    node_fs__WEBPACK_IMPORTED_MODULE_6___default().copyFileSync(edPath, BACKUP_FILE);
-                const fileText = node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(edPath, 'utf-8');
-                const result = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .applyEditFileRange */ .wc)(fileText, args.start_line, args.end_line, args.new_code);
-                if (!result.ok)
-                    return result.error;
-                node_fs__WEBPACK_IMPORTED_MODULE_6___default().writeFileSync(edPath, result.content);
-                return `Success: Replaced lines ${args.start_line} to ${args.end_line}.`;
+                catch (e) {
+                    if (e.code === 1)
+                        return "No matches found.";
+                    return `Search Error: ${e.message}`;
+                }
+            }
+            case "edit_file_lines": {
+                const args = rawArgs;
+                if (!args.path || !args.start_line || !args.end_line || typeof args.new_content !== 'string') {
+                    return "Error: Missing path, start_line, end_line, or new_content.";
+                }
+                try {
+                    const edPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
+                    if (edPath.includes("index.ts"))
+                        node_fs__WEBPACK_IMPORTED_MODULE_6___default().copyFileSync(edPath, BACKUP_FILE);
+                    const fileContent = node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(edPath, 'utf-8');
+                    const result = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .applyEditFileRange */ .wc)(fileContent, args.start_line, args.end_line, args.new_content);
+                    if (!result.ok)
+                        return result.error;
+                    node_fs__WEBPACK_IMPORTED_MODULE_6___default().writeFileSync(edPath, result.content);
+                    return `Success: Replaced lines ${args.start_line} through ${args.end_line} in ${args.path}.`;
+                }
+                catch (e) {
+                    return `Edit Error: ${e.message}`;
+                }
             }
             case "propose_fix": {
                 const args = rawArgs;

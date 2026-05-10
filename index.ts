@@ -213,9 +213,10 @@ async function seeScreen(query: string): Promise<string> {
 
 interface RunCommandArgs { command: string; }
 interface ReadFileArgs { path: string; start_line?: number; end_line?: number; }
-interface ReplaceInFileArgs { path: string; start_line: number; end_line: number; new_code: string; }
+interface EditFileLinesArgs { path: string; start_line: number; end_line: number; new_content: string; }
 interface ProposeFixArgs { issue: string; file_path: string; suggested_fix: string; }
 interface SearchWebArgs { query: string; }
+interface SearchCodebaseArgs { search_term: string; path: string; }
 
 let toolsUsed: string[] = [];
 async function executeTool(name: string, rawArgs: unknown): Promise<string> {
@@ -271,30 +272,45 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
             }
             case "read_file": {
                 const args = rawArgs as Partial<ReadFileArgs>;
-                if (typeof args.path !== 'string') return "Error: Missing required field 'path'.";
-                const rPath = resolveFilePath(args.path, ALLOWED_ROOTS);
-                let content = fs.readFileSync(rPath, 'utf-8');
-                if (args.start_line || args.end_line) {
-                    const lines = content.split('\n');
-                    content = lines.slice((args.start_line || 1) - 1, args.end_line || lines.length).join('\n');
-                }
-                return content;
+                if (!args.path) return "Error: Missing path.";
+                try {
+                    const rPath = resolveFilePath(args.path, ALLOWED_ROOTS);
+                    const fileContent = fs.readFileSync(rPath, 'utf-8');
+                    let lines = fileContent.split('\n');
+                    const start = args.start_line ? Math.max(1, args.start_line) : 1;
+                    const end = args.end_line ? Math.min(lines.length, args.end_line) : lines.length;
+                    lines = lines.slice(start - 1, end);
+                    // Force line numbers for model precision
+                    return lines.map((line, i) => `[Line ${start + i}] ${line}`).join('\n');
+                } catch (e: any) { return `Read Error: ${e.message}`; }
             }
-            case "replace_in_file": {
-                const args = rawArgs as Partial<ReplaceInFileArgs>;
-                if (!args.path || !args.start_line || !args.end_line || typeof args.new_code !== 'string') {
-                    return "Error: Missing path, start_line, end_line, or new_code.";
+            case "search_codebase": {
+                const args = rawArgs as Partial<SearchCodebaseArgs>;
+                if (!args.search_term || !args.path) return "Error: Missing search_term or path.";
+                console.log(chalk.yellow(`  [Action] Searching codebase for: ${args.search_term}`));
+                try {
+                    const searchPath = resolveFilePath(args.path, ALLOWED_ROOTS);
+                    const { stdout } = await execAsync(`grep -nriI "${args.search_term}" "${searchPath}" | head -n 50`, { timeout: 15000 });
+                    return stdout ? `Search Results (Max 50):\n${stdout}` : "No matches found.";
+                } catch (e: any) {
+                    if (e.code === 1) return "No matches found.";
+                    return `Search Error: ${e.message}`;
                 }
-                const edPath = resolveFilePath(args.path, ALLOWED_ROOTS);
-                if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
-                
-                const fileText = fs.readFileSync(edPath, 'utf-8');
-                const result = applyEditFileRange(fileText, args.start_line, args.end_line, args.new_code);
-                
-                if (!result.ok) return result.error;
-                
-                fs.writeFileSync(edPath, result.content);
-                return `Success: Replaced lines ${args.start_line} to ${args.end_line}.`;
+            }
+            case "edit_file_lines": {
+                const args = rawArgs as Partial<EditFileLinesArgs>;
+                if (!args.path || !args.start_line || !args.end_line || typeof args.new_content !== 'string') {
+                    return "Error: Missing path, start_line, end_line, or new_content.";
+                }
+                try {
+                    const edPath = resolveFilePath(args.path, ALLOWED_ROOTS);
+                    if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
+                    const fileContent = fs.readFileSync(edPath, 'utf-8');
+                    const result = applyEditFileRange(fileContent, args.start_line, args.end_line, args.new_content);
+                    if (!result.ok) return result.error;
+                    fs.writeFileSync(edPath, result.content);
+                    return `Success: Replaced lines ${args.start_line} through ${args.end_line} in ${args.path}.`;
+                } catch (e: any) { return `Edit Error: ${e.message}`; }
             }
             case "propose_fix": {
                 const args = rawArgs as Partial<ProposeFixArgs>;

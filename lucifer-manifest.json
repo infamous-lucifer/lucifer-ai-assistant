@@ -1,5 +1,5 @@
 {
-    "version": "5.1",
+    "version": "5.4",
     "dependencies": [
         {
             "name": "ddgr",
@@ -42,14 +42,29 @@
         {
             "type": "function",
             "function": {
+                "name": "search_codebase",
+                "description": "Searches for a text string or regex across all files in a directory. Returns file paths and exact line numbers.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_term": { "type": "string", "description": "The text to search for" },
+                        "path": { "type": "string", "description": "Directory to search, usually '.'" }
+                    },
+                    "required": ["search_term", "path"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "read_file",
-                "description": "Read a file with optional line range.",
+                "description": "Reads a file and returns its content WITH line numbers. Always use this before editing.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "path": { "type": "string" },
-                        "start_line": { "type": "number" },
-                        "end_line": { "type": "number" }
+                        "start_line": { "type": "number", "description": "Optional starting line" },
+                        "end_line": { "type": "number", "description": "Optional ending line" }
                     },
                     "required": ["path"]
                 }
@@ -58,17 +73,17 @@
         {
             "type": "function",
             "function": {
-                "name": "replace_in_file",
-                "description": "Surgically replace a specific block of lines in a file.",
+                "name": "edit_file_lines",
+                "description": "Replaces a specific range of lines in a file with new content. Replaces the block from start_line to end_line inclusive.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "path": { "type": "string" },
-                        "start_line": { "type": "number", "description": "The first line to replace (1-indexed)" },
-                        "end_line": { "type": "number", "description": "The last line to replace" },
-                        "new_code": { "type": "string", "description": "The new code to insert" }
+                        "start_line": { "type": "number" },
+                        "end_line": { "type": "number" },
+                        "new_content": { "type": "string", "description": "The exact new code to insert" }
                     },
-                    "required": ["path", "start_line", "end_line", "new_code"]
+                    "required": ["path", "start_line", "end_line", "new_content"]
                 }
             }
         },
