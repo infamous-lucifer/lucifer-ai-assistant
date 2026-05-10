@@ -72,6 +72,34 @@ lucifer
 | **v4.6** | Security Hardened | Mandatory command approval, path traversal protection, and injection defense. |
 | **v4.7** | Type-Safe Architecture | Strict TypeScript interfaces, robust error handling, and surgical tool precision. |
 | **v4.8** | Stability & Polish | Log rotation, path sanitization, pinned dependencies, and tool call robustness. |
+| **v5.0** | Adaptive Core | Self-healing via search_web, captured stderr, manifest-driven configuration, and evolution audit. |
+| **v5.1** | Quick Search | Added `!search` shortcut for direct, non-agentic web research. |
+
+## 🛠 Development & Maintenance
+
+To ensure the global `lucifer` command reflects your latest source code changes, you must rebuild the production binary:
+
+### Build & Sync
+```bash
+# 1. Compile and bundle source code
+npm run build
+
+# 2. Ensure global link points to the production binary (one-time setup)
+# ln -sf $(pwd)/dist/index.js /Users/lucifer/bin/lucifer
+```
+
+### Testing Source Changes
+If you want to test changes without rebuilding the binary, run the source code directly using the development runtime:
+```bash
+npm start -- [args]
+# Example: npm start -- --status
+```
+
+## 🧪 Testing
+Run the comprehensive unit test suite to verify security guards and utility logic:
+```bash
+npm test
+```
 
 ## 🛡 Security & Safety
 - **Mandatory Approval:** All terminal commands require explicit manual approval ('y/n') before execution.
