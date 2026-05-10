@@ -1,4 +1,4 @@
-# 👹 Lucifer AI Assistant (Hybrid v4.5)
+# 👹 Lucifer AI Assistant (Hybrid v4.8)
 
 **Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS (optimized for Apple Silicon M5). It combines the lightning-fast logic of a local model with the advanced visual capabilities of the Gemini 2.0 API.
 

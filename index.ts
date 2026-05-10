@@ -43,7 +43,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v4.5 — Quick Reference ===
+=== LUCIFER v4.8 — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -179,8 +179,8 @@ const tools: ChatCompletionTool[] = [
             name: "run_command",
             description: "Execute a shell command on macOS. Requires user approval.",
             parameters: {
-                type: "object",
-                properties: { command: { type: "string" } },
+                type: "object" as const,
+                properties: { command: { type: "string" as const } },
                 required: ["command"]
             }
         }
@@ -191,11 +191,11 @@ const tools: ChatCompletionTool[] = [
             name: "read_file",
             description: "Read a file with optional line range.",
             parameters: {
-                type: "object",
+                type: "object" as const,
                 properties: {
-                    path: { type: "string" },
-                    start_line: { type: "number" },
-                    end_line: { type: "number" }
+                    path: { type: "string" as const },
+                    start_line: { type: "number" as const },
+                    end_line: { type: "number" as const }
                 },
                 required: ["path"]
             }
@@ -207,11 +207,11 @@ const tools: ChatCompletionTool[] = [
             name: "replace_in_file",
             description: "Surgically edit text. Replaces exactly ONE occurrence. Provide unique old_string.",
             parameters: {
-                type: "object",
+                type: "object" as const,
                 properties: {
-                    path: { type: "string" },
-                    old_string: { type: "string" },
-                    new_string: { type: "string" }
+                    path: { type: "string" as const },
+                    old_string: { type: "string" as const },
+                    new_string: { type: "string" as const }
                 },
                 required: ["path", "old_string", "new_string"]
             }
@@ -223,11 +223,11 @@ const tools: ChatCompletionTool[] = [
             name: "propose_fix",
             description: "Propose a code fix for a specific issue.",
             parameters: {
-                type: "object",
+                type: "object" as const,
                 properties: {
-                    issue: { type: "string" },
-                    file_path: { type: "string" },
-                    suggested_fix: { type: "string" }
+                    issue: { type: "string" as const },
+                    file_path: { type: "string" as const },
+                    suggested_fix: { type: "string" as const }
                 },
                 required: ["issue", "file_path", "suggested_fix"]
             }
@@ -238,7 +238,7 @@ const tools: ChatCompletionTool[] = [
         function: {
             name: "get_deep_system_report",
             description: "Comprehensive macOS health report: CPU, RAM, Battery, and Network stats.",
-            parameters: { type: "object", properties: {} }
+            parameters: { type: "object" as const, properties: {} }
         }
     }
 ];
@@ -253,12 +253,11 @@ function resolveFilePath(filePath: string): string {
 }
 
 let toolsUsed: string[] = [];
-async function executeTool(name: string, rawArgs: any): Promise<string> {
+async function executeTool(name: string, rawArgs: unknown): Promise<string> {
     toolsUsed.push(name);
-    
+
     // Runtime validation for args
     if (typeof rawArgs !== 'object' || rawArgs === null) return "Error: Invalid tool arguments.";
-
     // C-1: Enhanced Danger Patterns + Mandatory Approval
     const DANGER_PATTERNS = [
         /rm\s+-rf?\s+[~\/]/,
@@ -321,7 +320,7 @@ async function executeTool(name: string, rawArgs: any): Promise<string> {
                 fs.writeFileSync(reviewPath, content);
                 return `Review request written to REVIEW_REQUEST.md. Open it manually and submit to Gemini CLI with: gemini -f REVIEW_REQUEST.md`;
             }
-            case "get_deep_system_report":
+            case "get_deep_system_report": {
                 console.log(chalk.yellow(`  [Action] Compiling deep system report...`));
                 const uptime = execSync('uptime', { encoding: 'utf-8' }).trim();
                 const battery = execSync('ioreg -r -c IOPMPowerSource', { encoding: 'utf-8' }).split('\n').filter(l => l.includes('Capacity') || l.includes('Voltage') || l.includes('CycleCount')).join('\n').trim();
@@ -329,6 +328,7 @@ async function executeTool(name: string, rawArgs: any): Promise<string> {
                 const cpu = execSync('sysctl hw.physicalcpu hw.logicalcpu', { encoding: 'utf-8' }).trim();
                 const net = execSync('netstat -i | head -n 5', { encoding: 'utf-8' }).trim();
                 return `📊 **Deep System Report**\n\n**Uptime:** ${uptime}\n\n**CPU:**\n${cpu}\n\n**Memory:**\n${mem}\n\n**Battery Deep Stats:**\n${battery}\n\n**Network (Top interfaces):**\n${net}`;
+            }
             default: return "Unknown tool";
         }
     } catch (error: any) { return `Error: ${error.message}`; }
@@ -356,7 +356,7 @@ async function main() {
 
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.5 (DEEP INSIGHT) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.8 (STABILITY PLUS) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: ${RUNTIMES_PATH}`));
     console.log(chalk.gray(`Path: ${PROJECT_ROOT}${gitContext}\n`));
@@ -399,7 +399,7 @@ async function main() {
             while (loopCount < 5) {
                 if (!localAI) throw new Error("Local AI (LM Studio) not initialized.");
                 process.stdout.write(chalk.gray('  [Thinking...]'));
-                const stream = await localAI.chat.completions.create({ model: "qwen2.5-coder-7b-instruct-mlx", messages: history, tools: tools as any, stream: true });
+                const stream = await localAI.chat.completions.create({ model: "qwen2.5-coder-7b-instruct-mlx", messages: history, tools: tools, stream: true });
                 process.stdout.write('\r' + ' '.repeat(20) + '\r');
 
                 let assistantMsgContent = "";
@@ -424,20 +424,28 @@ async function main() {
                 console.log('\n');
                 const assistantMsg: any = { role: 'assistant', content: assistantMsgContent };
                 if (toolCalls.length > 0) assistantMsg.tool_calls = toolCalls;
-                
+
                 history.push(assistantMsg);
                 if (assistantMsgContent) finalResponse = assistantMsgContent;
                 if (!assistantMsg.tool_calls) break;
 
                 for (const call of assistantMsg.tool_calls) {
-                    const toolResult = await executeTool(call.function.name, JSON.parse(call.function.arguments));
+                    let parsedArgs: unknown;
+                    try {
+                        parsedArgs = JSON.parse(call.function.arguments);
+                    } catch {
+                        history.push({ role: "tool", tool_call_id: call.id, content: "Error: Could not parse tool arguments. Please retry with valid JSON." });
+                        continue;
+                    }
+                    const toolResult = await executeTool(call.function.name, parsedArgs);
                     history.push({ role: "tool", tool_call_id: call.id, content: String(toolResult) });
                 }
                 loopCount++;
             }
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** ${query}\n\n**Lucifer:** ${finalResponse || 'Task complete.'}\n\n---\n\n`);
-            if (loopCount > 1) { try { execSync(`osascript -e 'display notification "Task complete" with title "Lucifer"'`); } catch {} }
-        } catch (err: any) { console.log(chalk.red(`\nError: ${err.message}\n`));
+            if (loopCount > 1) { try { execFileSync('osascript', ['-e', 'display notification "Task complete" with title "Lucifer"']); } catch {} }
+        } catch (err: any) {
+            console.log(chalk.red(`\nError: ${err.message}\n`));
         }
     }
     if (toolsUsed.length > 0) fs.appendFileSync(LOG_FILE, `\n## Session Summary\nTools used: ${[...new Set(toolsUsed)].join(', ')}\n`);
