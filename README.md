@@ -19,6 +19,7 @@
 | **v5.1** | Quick Search | Added `!search` shortcut for direct, non-agentic web research. |
 | **v5.2** | Resiliency Plus | Context-aware history pruning, synthetic history for shortcuts, and loop step warnings. |
 | **v5.3** | Local Optimized | Line-based editing, async shell execution, and deterministic evolution pipeline. |
+| **v5.4** | Precision Pipeline | Added `search_codebase` (grep), numbered `read_file`, and standardized `edit_file_lines`. |
 
 - `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
 - `package.json`: Project configuration and dependencies.
