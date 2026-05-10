@@ -94,7 +94,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v9.1 (HYBRID UTILITY) — Quick Reference ===
+=== LUCIFER v9.2 (HYBRID UTILITY) — Quick Reference ===
 
 STARTUP / ONE-SHOT
   lucifer "query"      One-shot answer and exit
@@ -142,11 +142,26 @@ TOOLS (model can use these autonomously)
 async function runStatusCheck() {
     console.log(chalk.cyan('\n=== LUCIFER STATUS ===\n'));
     const keyExists = fs.existsSync(CONFIG_FILE) && fs.readFileSync(CONFIG_FILE, 'utf-8').includes('API_KEY=');
-    console.log(keyExists ? chalk.green('✔ API Key found 🔑') : chalk.red('✘ API Key missing — run: lucifer --setup'));
+    if (keyExists) {
+        console.log(chalk.green('✔ API Key found 🔑'));
+    } else {
+        console.log(chalk.red('✘ API Key missing'));
+        console.log(chalk.gray('  Action: Run "lucifer --setup" to enter your Gemini API key for Vision tasks.'));
+    }
+
     try {
         const status = execSync(`${path.join(os.homedir(), '.lmstudio/bin/lms')} status`, { encoding: 'utf-8' });
-        console.log(!status.includes('Server: OFF') ? chalk.green('✔ LM Studio server running') : chalk.yellow('⚠ LM Studio server OFF'));
-    } catch { console.log(chalk.red('✘ LM Studio not found')); }
+        if (!status.includes('Server: OFF')) {
+            console.log(chalk.green('✔ LM Studio server running'));
+        } else {
+            console.log(chalk.yellow('⚠ LM Studio server OFF'));
+            console.log(chalk.gray('  Action: Open LM Studio or run "lms daemon up" to enable private reasoning.'));
+        }
+    } catch {
+        console.log(chalk.red('✘ LM Studio not found'));
+        console.log(chalk.gray('  Action: Download LM Studio from https://lmstudio.ai to enable 100% private AI.'));
+    }
+
     console.log(fs.existsSync(BACKUP_FILE) ? chalk.green('✔ Rollback backup available') : chalk.gray('– No backup yet'));
     console.log(fs.existsSync(RUNTIMES_PATH) ? chalk.green(`✔ Runtimes folder found`) : chalk.yellow(`⚠ Runtimes folder missing`));
     console.log('');
@@ -612,7 +627,7 @@ async function main() {
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
     const projectFolder = path.basename(PROJECT_ROOT);
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v9.1 (HYBRID UTILITY) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v9.2 (HYBRID UTILITY) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: ~/${projectFolder}${gitContext}\n`));

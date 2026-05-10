@@ -1,75 +1,48 @@
-# 👹 Lucifer AI: The Hybrid Utility Engine (v9.1)
+# 👹 Lucifer AI: The Hybrid Utility Engine (v9.2)
 
-**Lucifer** is a high-performance, privacy-first AI utility designed for the macOS terminal. Optimized for Apple Silicon (M5), it follows the **UNIX Philosophy**: "Write programs that do one thing and do it well. Write programs to work together. Write programs to handle text streams."
+**Lucifer** is a professional, high-performance AI utility designed for macOS power users and developers. Optimized for Apple Silicon (M5), it serves as a specialized **CLI wrapper** that connects your terminal to a private local model (Qwen 2.5) for text/coding tasks and Gemini 2.0 for vision.
 
-Unlike traditional "agentic" AIs that suffer from context collapse and loops, Lucifer v9.1 functions as a deterministic **AI Swiss Army Knife**. It combines the private reasoning of a local 7B model (Qwen 2.5) with the advanced visual capabilities of Gemini 2.0.
+Unlike mass-market cloud agents, Lucifer follows the **UNIX Philosophy**: "Write programs that do one thing and do it well." It is built for developers who prioritize **100% privacy** and deterministic execution over autonomous black-box reasoning.
 
 ## 🎯 Core Philosophy
-- **Deterministic > Agentic:** No autonomous wandering. Lucifer acts only when commanded, ensuring 100% predictable behavior.
-- **Text Stream First:** Built to live in shell pipelines (`stdin` ➔ `stdout`).
-- **Private & Local:** All code reasoning happens on your Mac. Only screenshots are sent to Gemini API for vision tasks.
+- **Deterministic Utility:** No autonomous wandering. Lucifer acts as a surgical power tool, ensuring predictable results and human-in-the-loop safety.
+- **Privacy First:** All code reasoning happens locally on your Mac via LM Studio. No code is ever sent to the cloud.
+- **Text Stream Optimized:** Built to live in your shell pipelines (`stdin` ➔ `stdout`).
 
 ## 🚀 Key Features
-
-### 1. Hybrid Intelligence
-- **Local Brain:** Qwen 2.5 Coder 7B (via LM Studio) for infinite, zero-cost coding and text processing.
+- **Local Brain:** Qwen 2.5 Coder 7B (via LM Studio) for infinite, zero-cost, offline coding assistance.
 - **Vision Brain:** Gemini 2.0 Flash for high-accuracy screen and UI analysis.
+- **UNIX Pipeline:** Support for native piping (`cat logs.txt | lucifer`) and one-shot execution.
+- **Command Suggest:** Generate and optionally execute shell commands with a secure `y/n/explain` loop.
+- **Industrial Hardening:** Features OOM-safe indexing, context window protection, and a mandatory "Read-Before-Write" security lock.
 
-### 2. The UNIX Pipeline
-- **Native Piping:** Pipe any command output directly into Lucifer for analysis.
-  ```bash
-  cat logs.txt | lucifer "Find the root cause of this error"
-  ```
-- **Command Forge (`-c`):** Generate shell commands with a secure `y/n/explain` loop.
-- **Structured Data:** Use `--json` to force machine-readable outputs for your own scripts.
-
-### 3. High-Precision Tools
-- **Grep Search:** Native `grep` integration for finding exact coordinates in your codebase.
-- **Numbered Reading:** Files are read with `[Line X]` anchors, eliminating hallucination during edits.
-- **Surgical Edits:** Line-based replacements with **Interactive Diffs** so you can audit every change.
-
-### 4. Industrial Hardening
-- **Context Sentinel:** Physically prevents context window blowout by capping tool outputs and rejecting massive file reads.
-- **Security Lock:** Mandatory "Read-Before-Write" enforcement for all file modifications.
-- **OOM Guard:** High-speed codebase indexing that ignores binaries and massive files to prevent system crashes.
+## ⚠️ Limitations & Scope
+Lucifer is a **high-precision utility**, not a general-purpose AGI. 
+- **Optimized for 7B Models:** Best used with Qwen 2.5 Coder 7B or similar. Larger tasks should be broken down into surgical steps.
+- **Context Constraints:** Operates under a local memory ceiling (~4000 tokens). Large data should be piped or read via line numbers.
+- **Requires LM Studio:** You must be comfortable managing a local inference server for the best experience.
 
 ## 🏃 Getting Started
 
 ### Prerequisites
-1. **LM Studio:** Running a local server on port `1234`.
-2. **Model:** `qwen2.5-coder-7b-instruct-mlx` loaded.
-3. **Dependencies:** `brew install ddgr` (for web search).
+1. **LM Studio:** [Download here](https://lmstudio.ai). Required for 100% private, zero-cost local reasoning.
+2. **Model:** Load `qwen2.5-coder-7b-instruct-mlx`.
+3. **Environment:** A Gemini API key (in `~/.lucifer-env`) for Vision capabilities.
 
-### Quick Install
+### Installation
 ```bash
 git clone https://github.com/infamous-lucifer/lucifer-ai-assistant.git
 cd lucifer-ai-assistant
 npm install && npm run build && npm link
 ```
 
-## ⌨️ Command Reference
-
-### One-Shot & Pipe (Recommended)
-| Command | Action |
-| :--- | :--- |
-| `lucifer "query"` | Get a quick answer and exit. |
-| `cat file \| lucifer` | Analyze piped data instantly. |
-| `lucifer -c "query"` | Suggest a command with `y/n/explain`. |
-| `lucifer --vision` | Capture and analyze screen. |
-| `lucifer --search` | Direct web research. |
-
-### Interactive Agent (`lucifer`)
-| Command | Action |
-| :--- | :--- |
-| `!fix <issue>` | Guided auto-repair pipeline. |
-| `!tldr <cmd>` | Get quick macOS cheat sheets. |
-| `!report` | Deep system diagnostics. |
-| `!test` | Run project unit tests. |
-
-## 🛡 Security & Safety
-- **100% Human-in-the-Loop:** No command runs and no file is changed without a manual `y` confirmation.
-- **Secure Execution:** Uses `execFileSync` to prevent shell injection attacks.
-- **Supply Chain Guard:** SHA256 checksum verification for all managed tool binaries.
+## 📈 Version History (Milestones)
+| Version | Milestone | The Result |
+| :--- | :--- | :--- |
+| **v1.0** | API Wrapper | Initial cloud-based prototype. |
+| **v4.6** | Security Pivot | Added sandboxing and mandatory human approval. |
+| **v7.1** | Industrial Core | Solved logic loops via deterministic guards. |
+| **v9.2** | Honest Reality | Current stable release. Optimized as a professional CLI wrapper. |
 
 ---
-*Created with 🖤 for the M5 MacBook Air. Optimized for stability and privacy.*
+*Created with 🖤 for the M5 MacBook Air. Built for developers who value control.*

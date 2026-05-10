@@ -22174,7 +22174,7 @@ async function syncDependencies() {
 const args = process.argv.slice(2);
 function printHelp() {
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`
-=== LUCIFER v9.1 (HYBRID UTILITY) — Quick Reference ===
+=== LUCIFER v9.2 (HYBRID UTILITY) — Quick Reference ===
 
 STARTUP / ONE-SHOT
   lucifer "query"      One-shot answer and exit
@@ -22221,13 +22221,26 @@ TOOLS (model can use these autonomously)
 async function runStatusCheck() {
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan('\n=== LUCIFER STATUS ===\n'));
     const keyExists = node_fs__WEBPACK_IMPORTED_MODULE_6___default().existsSync(CONFIG_FILE) && node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(CONFIG_FILE, 'utf-8').includes('API_KEY=');
-    console.log(keyExists ? chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ API Key found 🔑') : chalk__WEBPACK_IMPORTED_MODULE_9___default().red('✘ API Key missing — run: lucifer --setup'));
+    if (keyExists) {
+        console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ API Key found 🔑'));
+    }
+    else {
+        console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().red('✘ API Key missing'));
+        console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray('  Action: Run "lucifer --setup" to enter your Gemini API key for Vision tasks.'));
+    }
     try {
         const status = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`${node_path__WEBPACK_IMPORTED_MODULE_7___default().join(node_os__WEBPACK_IMPORTED_MODULE_8___default().homedir(), '.lmstudio/bin/lms')} status`, { encoding: 'utf-8' });
-        console.log(!status.includes('Server: OFF') ? chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ LM Studio server running') : chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow('⚠ LM Studio server OFF'));
+        if (!status.includes('Server: OFF')) {
+            console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ LM Studio server running'));
+        }
+        else {
+            console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow('⚠ LM Studio server OFF'));
+            console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray('  Action: Open LM Studio or run "lms daemon up" to enable private reasoning.'));
+        }
     }
     catch {
         console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().red('✘ LM Studio not found'));
+        console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray('  Action: Download LM Studio from https://lmstudio.ai to enable 100% private AI.'));
     }
     console.log(node_fs__WEBPACK_IMPORTED_MODULE_6___default().existsSync(BACKUP_FILE) ? chalk__WEBPACK_IMPORTED_MODULE_9___default().green('✔ Rollback backup available') : chalk__WEBPACK_IMPORTED_MODULE_9___default().gray('– No backup yet'));
     console.log(node_fs__WEBPACK_IMPORTED_MODULE_6___default().existsSync(RUNTIMES_PATH) ? chalk__WEBPACK_IMPORTED_MODULE_9___default().green(`✔ Runtimes folder found`) : chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow(`⚠ Runtimes folder missing`));
@@ -22728,7 +22741,7 @@ async function main() {
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan('─'.repeat(50)) + '\n');
     const projectFolder = node_path__WEBPACK_IMPORTED_MODULE_7___default().basename(PROJECT_ROOT);
-    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v9.1 (HYBRID UTILITY) ===`));
+    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v9.2 (HYBRID UTILITY) ===`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Tool Center: (Abstracted)`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Path: ~/${projectFolder}${gitContext}\n`));
