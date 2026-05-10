@@ -131,6 +131,20 @@
         {
             "type": "function",
             "function": {
+                "name": "semantic_search",
+                "description": "Searches for code by meaning and context rather than exact keywords. Returns ranked file paths.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": { "type": "string", "description": "The concept or functionality to search for (e.g., 'user authentication')" }
+                    },
+                    "required": ["query"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
                 "name": "get_command_help",
                 "description": "Get a simplified cheat sheet for a specific terminal command.",
                 "parameters": {

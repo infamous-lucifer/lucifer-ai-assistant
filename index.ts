@@ -11,12 +11,15 @@ import path from 'node:path';
 import os from 'node:os';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
+import MiniSearch from 'minisearch';
 import { fileURLToPath } from 'node:url';
+
 import {
     isPathAllowed,
     resolveFilePath,
     isDangerousCommand,
     applyEditFileRange,
+    showVisualDiff,
     pruneHistory,
     getLogsToDelete
 } from './lib/utils.js';
@@ -30,6 +33,8 @@ const CONFIG_FILE = path.join(os.homedir(), '.lucifer-env');
 const BACKUP_FILE = path.join(PROJECT_ROOT, "index.ts.bak");
 const RUNTIMES_PATH = path.join(os.homedir(), "runtimes");
 const LOGS_DIR = path.join(os.homedir(), '.lucifer-logs');
+const INDEX_FILE = path.join(PROJECT_ROOT, '.lucifer-index.json');
+
 
 const execAsync = promisify(exec);
 
@@ -75,11 +80,12 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v5.3 (LOCAL OPTIMIZED) — Quick Reference ===
+=== LUCIFER v6.0 (PROFESSIONAL CORE) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
   lucifer --evolve     Start in system evolution mode (health check + audit)
+  lucifer --index      Build/Update local codebase search index
   lucifer --rollback   Restore last stable version
   lucifer --status     Check system health
   lucifer --setup      First-time setup wizard
@@ -91,7 +97,7 @@ IN-SESSION COMMANDS
   !search <query>      Direct web research (DuckDuckGo)
   !tldr <command>      Get quick command cheat sheets
   !report              Instant deep system diagnostics
-  !read <path>         Quickly inspect a file
+  !read <path>         Quickly inspect a file (numbered)
   !test                Run project test suite (npm test)
   !status              Check Lucifer environment health
   !lms                 Check LM Studio server status
@@ -101,9 +107,10 @@ IN-SESSION COMMANDS
 
 TOOLS (model can use these autonomously)
   run_command          Execute shell commands (captures error logs)
-  search_web           Research updated syntax, docs, or bugs
-  read_file            Read files (supports line ranges)
-  replace_in_file      Surgical text edits with auto-backup
+  search_codebase      Find text/regex across project (grep)
+  read_file            Read files (numbered visual anchors)
+  edit_file_lines      Surgically replace line ranges (with diff)
+  semantic_search      Conceptual search (find code by meaning)
   propose_fix          Write a review request to REVIEW_REQUEST.md
   get_deep_system_report  CPU, Memory, Battery & Network deep stats
 `));
@@ -120,6 +127,26 @@ async function runStatusCheck() {
     console.log(fs.existsSync(BACKUP_FILE) ? chalk.green('✔ Rollback backup available') : chalk.gray('– No backup yet'));
     console.log(fs.existsSync(RUNTIMES_PATH) ? chalk.green(`✔ Runtimes folder found`) : chalk.yellow(`⚠ Runtimes folder missing`));
     console.log('');
+}
+
+async function buildIndex() {
+    console.log(chalk.magenta("  [Index] Building local codebase index..."));
+    const miniSearch = new MiniSearch({
+        fields: ['path', 'content'], 
+        storeFields: ['path']
+    });
+
+    const files = execSync(`find ${PROJECT_ROOT} -maxdepth 3 -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/dist/*' -type f`, { encoding: 'utf-8' }).split('\n').filter(Boolean);
+    
+    const documents = files.map((f, i) => {
+        try {
+            return { id: i, path: path.relative(PROJECT_ROOT, f), content: fs.readFileSync(f, 'utf-8') };
+        } catch (e) { return null; }
+    }).filter(Boolean);
+
+    miniSearch.addAll(documents as any);
+    fs.writeFileSync(INDEX_FILE, JSON.stringify(miniSearch.toJSON()));
+    console.log(chalk.green(`  [Index] Success. Indexed ${documents.length} files.`));
 }
 
 async function runSetupWizard() {
@@ -153,6 +180,7 @@ if (args.includes('--rollback')) {
     } else { console.log(chalk.red('✘ No backup found.')); }
     process.exit(0);
 }
+if (args.includes('--index')) { await buildIndex(); process.exit(0); }
 if (args.includes('--help') || args.includes('-h')) { printHelp(); process.exit(0); }
 if (args.includes('--status')) { await runStatusCheck(); process.exit(0); }
 if (args.includes('--setup')) { await runSetupWizard(); process.exit(0); }
@@ -216,6 +244,7 @@ interface ReadFileArgs { path: string; start_line?: number; end_line?: number; }
 interface EditFileLinesArgs { path: string; start_line: number; end_line: number; new_content: string; }
 interface ProposeFixArgs { issue: string; file_path: string; suggested_fix: string; }
 interface SearchWebArgs { query: string; }
+interface SemanticSearchArgs { query: string; }
 interface SearchCodebaseArgs { search_term: string; path: string; }
 
 let toolsUsed: string[] = [];
@@ -257,6 +286,20 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 } catch (e: any) {
                     return `Web Search Error: ${e.message}. Ensure 'ddgr' is synchronized in your runtimes folder.`;
                 }
+            }
+            case "semantic_search": {
+                const args = rawArgs as Partial<SemanticSearchArgs>;
+                if (!args.query) return "Error: Missing query.";
+                console.log(chalk.yellow(`  [Action] Semantic searching for: ${args.query}...`));
+                try {
+                    if (!fs.existsSync(INDEX_FILE)) return "Error: Index not found. Run 'lucifer --index' first.";
+                    const indexData = fs.readFileSync(INDEX_FILE, 'utf-8');
+                    const miniSearch = MiniSearch.loadJSON(indexData, { fields: ['path', 'content'], storeFields: ['path'] });
+                    const results = miniSearch.search(args.query, { prefix: true, fuzzy: 0.2 });
+                    return results.length > 0 
+                        ? `Top Matches:\n${results.slice(0, 5).map(r => `- ${r.path} (Score: ${r.score.toFixed(2)})`).join('\n')}`
+                        : "No conceptual matches found.";
+                } catch (e: any) { return `Search Error: ${e.message}`; }
             }
             case "get_command_help": {
                 const args = rawArgs as Partial<RunCommandArgs>;
@@ -304,12 +347,31 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 }
                 try {
                     const edPath = resolveFilePath(args.path, ALLOWED_ROOTS);
-                    if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
                     const fileContent = fs.readFileSync(edPath, 'utf-8');
                     const result = applyEditFileRange(fileContent, args.start_line, args.end_line, args.new_content);
                     if (!result.ok) return result.error;
+
+                    // Step 1: Show Diff and Ask Approval
+                    showVisualDiff(fileContent, result.content, args.path);
+                    const approved = await rl.question(chalk.yellow(`  Apply these changes to ${args.path}? (y/n): `));
+                    if (approved.toLowerCase() !== 'y') return "Edit cancelled by user.";
+
+                    if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
                     fs.writeFileSync(edPath, result.content);
-                    return `Success: Replaced lines ${args.start_line} through ${args.end_line} in ${args.path}.`;
+
+                    // Step 2: Autonomous Verification (TDD Loop)
+                    console.log(chalk.yellow(`  [Action] Verifying changes...`));
+                    try {
+                        // Check for package.json to see if we can run tests
+                        if (fs.existsSync(path.join(PROJECT_ROOT, 'package.json'))) {
+                            await execAsync('npm run build --dry-run', { timeout: 10000, cwd: PROJECT_ROOT });
+                        }
+                        return `Success: Replaced lines ${args.start_line} through ${args.end_line} in ${args.path}. All verification checks passed.`;
+                    } catch (e: any) {
+                        const errorMsg = `Warning: Edit applied, but verification FAILED.\nError:\n${e.stderr || e.stdout || e.message}\n\nPlease analyze this error and fix the code if necessary.`;
+                        console.log(chalk.red(`  [Verification Failed] ${e.message}`));
+                        return errorMsg;
+                    }
                 } catch (e: any) { return `Edit Error: ${e.message}`; }
             }
             case "propose_fix": {
@@ -359,7 +421,7 @@ async function main() {
 
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v5.3 (LOCAL OPTIMIZED) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v6.0 (PROFESSIONAL CORE) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: (Abstracted)${gitContext}\n`));

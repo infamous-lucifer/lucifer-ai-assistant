@@ -15,6 +15,7 @@ export declare function applyEditFileRange(fileText: string, startLine: number, 
     ok: false;
     error: string;
 };
+export declare function showVisualDiff(oldText: string, newText: string, fileName: string): void;
 export declare function pruneHistory(history: any[], maxLength: number): any[];
 export declare function getLogsToDelete(logs: string[], maxLogs: number): string[];
 //# sourceMappingURL=utils.d.ts.map

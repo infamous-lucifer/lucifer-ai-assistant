@@ -1,10 +1,13 @@
-# 👹 Lucifer AI Assistant (Hybrid v5.3)
+# 👹 Lucifer AI Assistant (Hybrid v6.0)
 
-**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 5.3 introduces the **Local Optimized Core**, specifically refactored to empower 7B models on 16GB RAM hardware through deterministic logic and async execution.
+**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 6.0 introduces the **Professional Core**, featuring interactive safety diffs, autonomous verification, and conceptual codebase search.
 
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
-- **Local Optimized Core (v5.3):** Refactored for reliability on M5 Air hardware using line-based editing and non-blocking async commands.
+- **Visual Safety:** Interactive Git-style diffs for all file edits, ensuring you audit every change before it hits the disk.
+- **Autonomous Verification:** Built-in TDD loop that automatically runs tests/syntax checks after edits to fix its own errors.
+- **Conceptual Search:** Local semantic search via `minisearch` allowing you to find code by meaning rather than just keywords.
+- **Local Optimized Core:** Refactored for reliability on M5 Air hardware using line-based editing and non-blocking async commands.
 - **Adaptive Core (v5.0):** Real-time autonomous self-healing via `search_web` and comprehensive error analysis.
 - **Manifest-Driven:** Configuration (tools, security rules, paths) is decoupled into `lucifer-manifest.json` for easy updates.
 - **System Agency:** Lucifer can run terminal commands, manage files, and research updated syntax or docs online.
@@ -20,6 +23,7 @@
 | **v5.2** | Resiliency Plus | Context-aware history pruning, synthetic history for shortcuts, and loop step warnings. |
 | **v5.3** | Local Optimized | Line-based editing, async shell execution, and deterministic evolution pipeline. |
 | **v5.4** | Precision Pipeline | Added `search_codebase` (grep), numbered `read_file`, and standardized `edit_file_lines`. |
+| **v6.0** | Professional Core | Interactive diffs, autonomous verification loop, and local semantic search index. |
 
 - `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
 - `package.json`: Project configuration and dependencies.

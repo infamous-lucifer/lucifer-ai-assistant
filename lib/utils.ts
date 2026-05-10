@@ -1,5 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import * as diff from 'diff';
+import chalk from 'chalk';
 
 export const deps = {
     fs: {
@@ -47,6 +49,29 @@ export function applyEditFileRange(fileText: string, startLine: number, endLine:
     lines.splice(startLine - 1, endLine - startLine + 1, newCode);
     
     return { ok: true, content: lines.join('\n') };
+}
+
+export function showVisualDiff(oldText: string, newText: string, fileName: string) {
+    const changes = diff.diffLines(oldText, newText);
+    console.log(chalk.cyan(`\n--- ${fileName} (Changes)`));
+    changes.forEach((part) => {
+        const color = part.added ? chalk.green : part.removed ? chalk.red : chalk.gray;
+        const prefix = part.added ? '+ ' : part.removed ? '- ' : '  ';
+        if (part.added || part.removed) {
+            process.stdout.write(color(part.value.split('\n').map(l => l ? prefix + l : l).join('\n')));
+        } else {
+            // Show only first and last line of unchanged blocks if they are long
+            const lines = part.value.split('\n').filter(l => l.trim() !== '');
+            if (lines.length > 4) {
+                process.stdout.write(chalk.gray(`  ${lines[0]}\n`));
+                process.stdout.write(chalk.gray(`  ... (${lines.length - 2} lines unchanged) ...\n`));
+                process.stdout.write(chalk.gray(`  ${lines[lines.length - 1]}\n`));
+            } else {
+                process.stdout.write(chalk.gray(part.value.split('\n').map(l => l ? prefix + l : l).join('\n')));
+            }
+        }
+    });
+    console.log(chalk.cyan('\n--- END DIFF ---\n'));
 }
 
 export function pruneHistory(history: any[], maxLength: number): any[] {
