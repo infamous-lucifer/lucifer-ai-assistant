@@ -22115,7 +22115,7 @@ const RUNTIMES_PATH = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(node
 const LOGS_DIR = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(node_os__WEBPACK_IMPORTED_MODULE_7___default().homedir(), '.lucifer-logs');
 // --- Configuration & Manifest ---
 const MANIFEST_PATH = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(PROJECT_ROOT, 'lucifer-manifest.json');
-let manifest = { version: "5.0", dangerPatterns: [], tools: [] };
+let manifest = { version: "5.1", dependencies: [], dangerPatterns: [], tools: [] };
 try {
     if (node_fs__WEBPACK_IMPORTED_MODULE_5___default().existsSync(MANIFEST_PATH)) {
         manifest = JSON.parse(node_fs__WEBPACK_IMPORTED_MODULE_5___default().readFileSync(MANIFEST_PATH, 'utf-8'));
@@ -22132,6 +22132,24 @@ let ai;
 let localAI;
 const rl = node_readline_promises__WEBPACK_IMPORTED_MODULE_2__.createInterface({ input: node_process__WEBPACK_IMPORTED_MODULE_3__.stdin, output: node_process__WEBPACK_IMPORTED_MODULE_3__.stdout });
 const ALLOWED_ROOTS = [PROJECT_ROOT, RUNTIMES_PATH];
+async function syncDependencies() {
+    const deps = manifest.dependencies || [];
+    for (const dep of deps) {
+        const binaryPath = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(RUNTIMES_PATH, dep.binary);
+        if (!node_fs__WEBPACK_IMPORTED_MODULE_5___default().existsSync(binaryPath)) {
+            process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_8___default().yellow(`  [Sync] Installing tool: ${dep.name}...`));
+            try {
+                if (!node_fs__WEBPACK_IMPORTED_MODULE_5___default().existsSync(node_path__WEBPACK_IMPORTED_MODULE_6___default().dirname(binaryPath)))
+                    node_fs__WEBPACK_IMPORTED_MODULE_5___default().mkdirSync(node_path__WEBPACK_IMPORTED_MODULE_6___default().dirname(binaryPath), { recursive: true });
+                (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`curl -sL ${dep.source} -o ${binaryPath} && chmod +x ${binaryPath}`);
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().green(" Done."));
+            }
+            catch (e) {
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().red(`\n✘ Failed to install ${dep.name}: ${e.message}`));
+            }
+        }
+    }
+}
 // --- CLI Argument Handling ---
 const args = process.argv.slice(2);
 function printHelp() {
@@ -22252,6 +22270,7 @@ process.on('SIGINT', () => {
     process.exit(0);
 });
 async function initializeApp() {
+    await syncDependencies();
     if (!apiKey) {
         console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().yellow("\n=== First Time Setup ==="));
         apiKey = await rl.question(chalk__WEBPACK_IMPORTED_MODULE_8___default().green('Enter your Gemini API Key: '));
@@ -22328,14 +22347,13 @@ async function executeTool(name, rawArgs) {
                     return "Error: Missing required field 'query'.";
                 console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().yellow(`  [Action] Researching: ${args.query}...`));
                 try {
-                    // Using 'ddgr' (DuckDuckGo CLI) for feasible web search on macOS
-                    // --json for structured output, -n 3 for top 3 results
-                    const result = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`ddgr --json -n 3 "${args.query}"`, { encoding: 'utf-8' });
+                    const ddgrPath = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(RUNTIMES_PATH, "bin/ddgr");
+                    const result = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`${ddgrPath} --json -n 3 "${args.query}"`, { encoding: 'utf-8' });
                     const results = JSON.parse(result);
                     return results.map((r) => `[${r.title}](${r.url})\n${r.abstract}`).join('\n\n');
                 }
                 catch (e) {
-                    return `Web Search Error: ${e.message}. Ensure 'ddgr' is installed (brew install ddgr).`;
+                    return `Web Search Error: ${e.message}. Ensure 'ddgr' is synchronized in your runtimes folder.`;
                 }
             }
             case "read_file": {

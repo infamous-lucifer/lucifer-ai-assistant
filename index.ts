@@ -31,7 +31,7 @@ const LOGS_DIR = path.join(os.homedir(), '.lucifer-logs');
 
 // --- Configuration & Manifest ---
 const MANIFEST_PATH = path.join(PROJECT_ROOT, 'lucifer-manifest.json');
-let manifest: any = { version: "5.0", dangerPatterns: [], tools: [] };
+let manifest: any = { version: "5.1", dependencies: [], dangerPatterns: [], tools: [] };
 try {
     if (fs.existsSync(MANIFEST_PATH)) {
         manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf-8'));
@@ -50,6 +50,21 @@ let localAI: OpenAI | undefined;
 const rl = readline.createInterface({ input, output });
 
 const ALLOWED_ROOTS = [PROJECT_ROOT, RUNTIMES_PATH];
+
+async function syncDependencies() {
+    const deps = manifest.dependencies || [];
+    for (const dep of deps) {
+        const binaryPath = path.join(RUNTIMES_PATH, dep.binary);
+        if (!fs.existsSync(binaryPath)) {
+            process.stdout.write(chalk.yellow(`  [Sync] Installing tool: ${dep.name}...`));
+            try {
+                if (!fs.existsSync(path.dirname(binaryPath))) fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
+                execSync(`curl -sL ${dep.source} -o ${binaryPath} && chmod +x ${binaryPath}`);
+                console.log(chalk.green(" Done."));
+            } catch (e: any) { console.log(chalk.red(`\n✘ Failed to install ${dep.name}: ${e.message}`)); }
+        }
+    }
+}
 
 // --- CLI Argument Handling ---
 const args = process.argv.slice(2);
@@ -152,6 +167,7 @@ process.on('SIGINT', () => {
 });
 
 async function initializeApp() {
+    await syncDependencies();
     if (!apiKey) {
         console.log(chalk.yellow("\n=== First Time Setup ==="));
         apiKey = await rl.question(chalk.green('Enter your Gemini API Key: '));
@@ -227,13 +243,12 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 if (typeof args.query !== 'string') return "Error: Missing required field 'query'.";
                 console.log(chalk.yellow(`  [Action] Researching: ${args.query}...`));
                 try {
-                    // Using 'ddgr' (DuckDuckGo CLI) for feasible web search on macOS
-                    // --json for structured output, -n 3 for top 3 results
-                    const result = execSync(`ddgr --json -n 3 "${args.query}"`, { encoding: 'utf-8' });
+                    const ddgrPath = path.join(RUNTIMES_PATH, "bin/ddgr");
+                    const result = execSync(`${ddgrPath} --json -n 3 "${args.query}"`, { encoding: 'utf-8' });
                     const results = JSON.parse(result);
                     return results.map((r: any) => `[${r.title}](${r.url})\n${r.abstract}`).join('\n\n');
                 } catch (e: any) {
-                    return `Web Search Error: ${e.message}. Ensure 'ddgr' is installed (brew install ddgr).`;
+                    return `Web Search Error: ${e.message}. Ensure 'ddgr' is synchronized in your runtimes folder.`;
                 }
             }
             case "read_file": {
