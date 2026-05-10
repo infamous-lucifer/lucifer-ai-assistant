@@ -33,7 +33,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v4.4 — Quick Reference ===
+=== LUCIFER v4.5 — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -55,7 +55,7 @@ TOOLS (model can use these autonomously)
   read_file            Read files (supports line ranges)
   replace_in_file      Surgical text edits with auto-backup
   propose_fix          Write a review request to REVIEW_REQUEST.md
-  get_system_info      Battery + uptime health report
+  get_deep_system_report  CPU, Memory, Battery & Network deep stats
 `));
 }
 
@@ -159,7 +159,7 @@ const tools = [
     { type: "function", function: { name: "read_file", description: "Read file.", parameters: { type: "object", properties: { path: { type: "string" }, start_line: { type: "number" }, end_line: { type: "number" } }, required: ["path"] } } },
     { type: "function", function: { name: "replace_in_file", description: "Edit text.", parameters: { type: "object", properties: { path: { type: "string" }, old_string: { type: "string" }, new_string: { type: "string" } }, required: ["path", "old_string", "new_string"] } } },
     { type: "function", function: { name: "propose_fix", description: "Review Request.", parameters: { type: "object", properties: { issue: { type: "string" }, file_path: { type: "string" }, suggested_fix: { type: "string" } }, required: ["issue", "file_path", "suggested_fix"] } } },
-    { type: "function", function: { name: "get_system_info", description: "Battery/Uptime report.", parameters: { type: "object", properties: {} } } }
+    { type: "function", function: { name: "get_deep_system_report", description: "Comprehensive macOS health report: CPU, RAM, Battery, and Network stats.", parameters: { type: "object", properties: {} } } }
 ];
 
 function resolveFilePath(filePath: string): string {
@@ -200,10 +200,14 @@ function executeTool(name: string, args: any): string {
                 const reviewPath = path.join(PROJECT_ROOT, "REVIEW_REQUEST.md");
                 fs.writeFileSync(reviewPath, `# 🛠 Fix Proposal\n**File:** ${args.file_path}\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``);
                 return `Review request written to REVIEW_REQUEST.md. Open it manually and submit to Gemini CLI with: gemini -f REVIEW_REQUEST.md`;
-            case "get_system_info":
+            case "get_deep_system_report":
+                console.log(chalk.yellow(`  [Action] Compiling deep system report...`));
                 const uptime = execSync('uptime', { encoding: 'utf-8' }).trim();
-                const battery = execSync('pmset -g batt', { encoding: 'utf-8' }).trim();
-                return `📊 **System Health Report**\n\n**Uptime:** ${uptime}\n**Battery:**\n\`\`\`\n${battery}\n\`\`\``;
+                const battery = execSync('ioreg -r -c IOPMPowerSource', { encoding: 'utf-8' }).split('\n').filter(l => l.includes('Capacity') || l.includes('Voltage') || l.includes('CycleCount')).join('\n').trim();
+                const mem = execSync('vm_stat', { encoding: 'utf-8' }).trim();
+                const cpu = execSync('sysctl hw.physicalcpu hw.logicalcpu', { encoding: 'utf-8' }).trim();
+                const net = execSync('netstat -i | head -n 5', { encoding: 'utf-8' }).trim();
+                return `📊 **Deep System Report**\n\n**Uptime:** ${uptime}\n\n**CPU:**\n${cpu}\n\n**Memory:**\n${mem}\n\n**Battery Deep Stats:**\n${battery}\n\n**Network (Top interfaces):**\n${net}`;
             default: return "Unknown tool";
         }
     } catch (error: any) { return `Error: ${error.message}`; }
@@ -223,8 +227,9 @@ async function main() {
     } catch {}
 
     console.clear();
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.4 (PRO) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.5 (DEEP INSIGHT) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
+    console.log(chalk.gray(`Tool Center: ${RUNTIMES_PATH}`));
     console.log(chalk.gray(`Path: ${PROJECT_ROOT}${gitContext}\n`));
 
     const basePrompt = `You are Lucifer, a pro agentic AI for macOS. 
@@ -283,7 +288,9 @@ async function main() {
                     }
                 }
                 console.log('\n');
-                const assistantMsg = { role: 'assistant', content: assistantMsgContent, tool_calls: toolCalls.length > 0 ? toolCalls : undefined };
+                const assistantMsg: any = { role: 'assistant', content: assistantMsgContent };
+                if (toolCalls.length > 0) assistantMsg.tool_calls = toolCalls;
+                
                 history.push(assistantMsg);
                 if (assistantMsgContent) finalResponse = assistantMsgContent;
                 if (!assistantMsg.tool_calls) break;
