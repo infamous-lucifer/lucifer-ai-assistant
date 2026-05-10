@@ -34,15 +34,17 @@
     "url": "https://github.com/infamous-lucifer/lucifer-ai-assistant/issues"
   },
   "homepage": "https://github.com/infamous-lucifer/lucifer-ai-assistant#readme",
-    "dependencies": {},
-  "devDependencies": {
+  "dependencies": {
     "@google/genai": "^1.52.0",
+    "openai": "^6.37.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@vercel/ncc": "^0.38.4",
     "chalk": "^4.1.2",
     "dotenv": "^17.4.2",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
-    "@types/node": "^25.6.0",
-    "@vercel/ncc": "^0.38.4"
+    "typescript": "^6.0.3"
   },
   "engines": {
     "node": ">=18.0.0"

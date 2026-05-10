@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { execSync } from 'node:child_process';
@@ -7,7 +8,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import chalk from 'chalk';
-import crypto from 'node:crypto';
 import dotenv from 'dotenv';
 
 // --- Global Configuration Setup ---
@@ -16,227 +16,178 @@ dotenv.config({ path: CONFIG_FILE });
 
 let apiKey: string | undefined = process.env.API_KEY;
 let ai: GoogleGenAI;
+let localAI: OpenAI;
 
 const rl = readline.createInterface({ input, output });
+
+// --- Graceful Shutdown Handler ---
+process.on('SIGINT', () => {
+    console.log(chalk.yellow("\n[Signal] Interrupt received. Shutting down Lucifer safely..."));
+    rl.close();
+    process.exit(0);
+});
 
 async function initializeApp(): Promise<void> {
     if (!apiKey) {
         console.log(chalk.yellow("\n=== First Time Setup ==="));
-        console.log(chalk.gray("Get your free Gemini API key from: https://makersuite.google.com/app/apikey"));
-        
-        apiKey = await rl.question(chalk.green('Enter your API Key: '));
-        
-        if (!apiKey || !apiKey.trim()) {
-            console.log(chalk.red("Error: API Key cannot be empty. Exiting."));
-            process.exit(1);
-        }
-
-        // Save it globally so they never have to enter it again
-        fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
-        console.log(chalk.cyan(`\nSuccess! Key saved securely to ${CONFIG_FILE}`));
-        console.log(chalk.gray("Starting Lucifer...\n"));
+        apiKey = await rl.question(chalk.green('Enter your Gemini API Key (for Vision): '));
+        if (apiKey) fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
     }
-
-    ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-}
-
-// --- Rate Limit Tracking ---
-const RATE_LIMIT_LOG: string = path.join(os.homedir(), '.lucifer-rate-limits.json');
-
-interface RateLimitData {
-    date: string;
-    models: Record<string, number>;
-}
-
-function loadRateLimitData(): RateLimitData {
-    const today: string = new Date().toISOString().split('T')[0]!;
     
-    // Explicitly define the default data to satisfy strict type checks
-    const defaultData: RateLimitData = { 
-        date: today, 
-        models: {} as Record<string, number> 
-    };
+    ai = new GoogleGenAI({ apiKey: apiKey!.trim() });
 
-    if (fs.existsSync(RATE_LIMIT_LOG)) {
-        try {
-            // Use 'as RateLimitData' instead of type declaration for the any-return of JSON.parse
-            const data = JSON.parse(fs.readFileSync(RATE_LIMIT_LOG, 'utf-8')) as RateLimitData;
-            
-            if (data.date !== today) {
-                return defaultData;
-            }
-            return data;
-        } catch {
-            // Removed the unused 'e' variable
-            return defaultData;
+    try {
+        const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
+        const status = execSync(`${lmsPath} status`, { encoding: 'utf-8' });
+        if (status.includes('Server: OFF')) {
+            process.stdout.write(chalk.yellow("Local server is OFF. Starting lms daemon..."));
+            execSync(`${lmsPath} daemon up`);
+            console.log(chalk.green(" Done."));
         }
+    } catch (e) {
+        console.log(chalk.gray("[Note] Could not verify local server via 'lms' CLI. Ensure it is started manually."));
     }
-    return defaultData;
-}
-
-function saveRateLimitData(data: RateLimitData): void {
-    fs.writeFileSync(RATE_LIMIT_LOG, JSON.stringify(data, null, 2));
-}
-
-function trackRequest(model: string): void {
-    if (!model) {
-        console.log(chalk.yellow("  [Warning: No model specified]"));
-        return;
-    }
-    const data = loadRateLimitData();
-    data.models[model] = (data.models[model] || 0) + 1;
-    saveRateLimitData(data);
-    console.log(chalk.gray(`  [${model}: ${data.models[model]} req today]`));
-}
-
-function showRateLimits(): void {
-    const data = loadRateLimitData();
-    console.log(chalk.cyan('\n--- Rate Limit Usage ---'));
-    Object.entries(data.models).forEach(([model, count]) => {
-        const limit: number = model === 'gemini-2.5-flash' ? 1500 : 500;
-        const percentage: number = Math.round((count / limit) * 100);
-        const bar: string = '█'.repeat(Math.floor(percentage / 5)) + '░'.repeat(20 - Math.floor(percentage / 5));
-        console.log(chalk.gray(`${model}: ${bar} ${count}/${limit} (${percentage}%)`));
+    
+    localAI = new OpenAI({
+        baseURL: "http://localhost:1234/v1", 
+        apiKey: "lm-studio",
+        timeout: 45000, 
     });
-    console.log();
 }
 
-// --- Screen Capture Caching ---
-let cachedScreenHash: string | null = null;
-let cachedScreenData: string | null = null;
-
-async function getCachedScreenCapture(): Promise<string> {
-    const screenshotPath: string = path.join(os.tmpdir(), 'lucifer-screen.png');
-    const platform: NodeJS.Platform = process.platform;
-    let captureCommand: string;
-    
-    if (platform === 'darwin') {
-        captureCommand = `screencapture -x ${screenshotPath}`;
-    }
-    else if (platform === 'linux') {
-        captureCommand = `scrot -z ${screenshotPath} || import -window root ${screenshotPath}`;
-    }
-    else if (platform === 'win32') {
-        captureCommand = `nircmd.exe savescreenshot ${screenshotPath} || powershell -command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('%{PRTSC}'); Start-Sleep -Milliseconds 100; $img = [System.Windows.Forms.Clipboard]::GetImage(); $img.Save('${screenshotPath}')"`;
-    }
-    else {
-        throw new Error(`Unsupported platform: ${platform}. Please implement screenshot capture for your OS.`);
-    }
-    
-    execSync(captureCommand);
-    const data: Buffer = fs.readFileSync(screenshotPath);
-    const hash: string = crypto.createHash('sha256').update(data).digest('hex');
-    
-    if (hash === cachedScreenHash && cachedScreenData) {
-        console.log(chalk.yellow('  [Using cached screenshot]'));
-        fs.unlinkSync(screenshotPath);
-        return cachedScreenData;
-    }
-    
-    cachedScreenHash = hash;
-    cachedScreenData = data.toString('base64');
-    fs.unlinkSync(screenshotPath);
-    return cachedScreenData;
-}
-
-// --- Retry Logic with Exponential Backoff ---
-async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3, initialDelayMs = 1000): Promise<T> {
-    let lastError: any;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-            return await fn();
-        }
-        catch (err: any) {
-            lastError = err;
-            if (err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED')) {
-                if (attempt < maxRetries) {
-                    const delayMs: number = initialDelayMs * Math.pow(2, attempt);
-                    console.log(chalk.yellow(`\n  Rate limited. Retrying in ${delayMs}ms... (attempt ${attempt + 1}/${maxRetries})`));
-                    await new Promise(resolve => setTimeout(resolve, delayMs));
-                    continue;
-                }
+const tools = [
+    {
+        type: "function",
+        function: {
+            name: "run_command",
+            description: "Execute a shell command on the user's Mac. Use this for all file system operations (list, read, create, delete, move) and system checks.",
+            parameters: {
+                type: "object",
+                properties: {
+                    command: {
+                        type: "string",
+                        description: "The exact shell command to run."
+                    }
+                },
+                required: ["command"]
             }
-            throw err;
         }
     }
-    throw lastError;
-}
+];
 
-// --- Optimized Multi-Model Logic ---
-async function searchWeb(query: string): Promise<string> {
-    return retryWithBackoff(async () => {
-        trackRequest('gemini-2.5-flash');
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: query,
-            config: { tools: [{ googleSearch: {} }] }
-        });
-        return response.text || "No response generated.";
-    });
+function executeTool(name: string, args: any): string {
+    if (name === "run_command") {
+        const forbidden = ['rm -rf /', 'sudo', '.env', 'API_KEY'];
+        if (forbidden.some(word => args.command.includes(word))) {
+            return "Error: Security guard rail blocked this command.";
+        }
+
+        try {
+            console.log(chalk.yellow(`  [Action] ${args.command}`));
+            const output = execSync(args.command, { encoding: 'utf-8', timeout: 15000 });
+            return output || "(Command executed successfully, no output)";
+        } catch (error: any) {
+            return `Error: ${error.message || "Command failed"}`;
+        }
+    }
+    return "Unknown tool";
 }
 
 async function seeScreen(query: string): Promise<string> {
-    return retryWithBackoff(async () => {
-        trackRequest('gemini-3.1-flash-lite-preview');
-        const base64Image = await getCachedScreenCapture();
-        const response = await ai.models.generateContent({
-            model: "gemini-3.1-flash-lite-preview",
-            contents: [
-                { text: query || "What is on my screen?" },
-                { inlineData: { mimeType: "image/png", data: base64Image } }
-            ]
-        });
-        return response.text || "No response generated.";
-    });
+    try {
+        const screenshotPath: string = path.join(os.tmpdir(), 'lucifer-screen.png');
+        execSync(`screencapture -x ${screenshotPath}`);
+        const data: Buffer = fs.readFileSync(screenshotPath);
+        const base64Image = data.toString('base64');
+        fs.unlinkSync(screenshotPath);
+
+        const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const response = await model.generateContent([
+            { text: query || "What is on my screen?" },
+            { inlineData: { mimeType: "image/png", data: base64Image } }
+        ]);
+        return response.response.text();
+    } catch (e: any) {
+        return `Vision Error: ${e.message}`;
+    }
 }
 
-// --- The Main Logic ---
 async function main(): Promise<void> {
     await initializeApp(); 
     
     console.clear();
-    console.log(chalk.cyan("=== LUCIFER: LIMIT-OPTIMIZED ASSISTANT ==="));
-    console.log(chalk.gray("Mode: Multi-Model (Lite for Chat, 2.5 for Search)"));
-    console.log(chalk.gray("Features: Rate Limit Tracking, Screen Caching, Retry Logic"));
-    console.log(chalk.gray("Commands: !search <query>, !screen [query], !limits, exit\n"));
-    
+    console.log(chalk.cyan("=== LUCIFER-HYBRID v2 (GUARD RAILS ENABLED) ==="));
+    console.log(chalk.gray("Local Brain: Qwen 2.5 Coder (via LM Studio)"));
+    console.log(chalk.gray("Vision: Gemini Flash API"));
+    console.log(chalk.gray("Press Ctrl+C to stop or exit mid-process.\n"));
+
+    let history: any[] = [
+        { 
+            role: "system", 
+            content: "You are Lucifer, a professional agentic AI assistant for macOS. " +
+                     "OUTPUT RULES: " +
+                     "1. Use Markdown for ALL responses. " +
+                     "2. Format code snippets or terminal commands inside backticks (e.g., `ls -la`) or triple-backtick blocks with the language (e.g., ```python). " +
+                     "3. Be concise and professional. " +
+                     "4. After running a command, explain what you did and show any relevant output in a structured way. " +
+                     "5. Max 5 tool calls per user prompt. " +
+                     "6. Always ensure the user can copy-paste your code blocks directly."
+        }
+    ];
+
     while (true) {
-        const query: string = await rl.question(chalk.green('lucifer@m5-air > '));
-        
-        if (query.toLowerCase() === 'exit') {
-            showRateLimits();
-            break;
-        }
-        
-        if (query.toLowerCase() === '!limits') {
-            showRateLimits();
-            continue;
-        }
-        
+        const query: string = await rl.question(chalk.green('lucifer@m5 > '));
+        if (query.toLowerCase() === 'exit' || query.toLowerCase() === 'quit') break;
+        if (!query.trim()) continue;
+
         try {
-            if (query.startsWith('!search')) {
-                process.stdout.write(chalk.blue("Searching web with 2.5-Flash (1.5K RPD)..."));
-                const result = await searchWeb(query.slice(8));
-                console.log(`\n${chalk.white(result)}\n`);
-            }
-            else if (query.startsWith('!screen')) {
-                process.stdout.write(chalk.magenta("Analyzing screen with 3.1-Lite (500 RPD)..."));
+            if (query.startsWith('!screen')) {
+                process.stdout.write(chalk.magenta("Analyzing screen..."));
                 const result = await seeScreen(query.slice(8));
                 console.log(`\n${chalk.white(result)}\n`);
+                continue;
             }
-            else {
-                trackRequest('gemini-3.1-flash-lite-preview');
-                const response = await retryWithBackoff(async () => {
-                    return ai.models.generateContent({
-                        model: "gemini-3.1-flash-lite-preview",
-                        contents: query
-                    });
+
+            history.push({ role: "user", content: query });
+            
+            let loopCount = 0;
+            const MAX_LOOPS = 5;
+
+            while (loopCount < MAX_LOOPS) {
+                const response = await localAI.chat.completions.create({
+                    model: "qwen2.5-coder-7b-instruct-mlx",
+                    messages: history,
+                    tools: tools as any,
                 });
-                console.log(chalk.white(response.text || "") + '\n');
+
+                const assistantMsg = response.choices[0].message;
+                history.push(assistantMsg);
+
+                if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
+                    console.log(chalk.white(assistantMsg.content || "") + '\n');
+                    break;
+                }
+
+                for (const toolCall of assistantMsg.tool_calls) {
+                    const toolResult = executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
+                    history.push({
+                        role: "tool",
+                        tool_call_id: toolCall.id,
+                        content: toolResult
+                    });
+                }
+                loopCount++;
+            }
+
+            if (loopCount >= MAX_LOOPS) {
+                console.log(chalk.red("[Safety] Maximum reasoning steps reached. Handing back to user."));
             }
         }
         catch (err: any) {
-            console.log(chalk.red(`\nError: ${err.message}\n`));
+            console.log(chalk.red(`\nError: ${err.message}`));
+            if (err.message.includes('ECONNREFUSED')) {
+                console.log(chalk.gray("Check if LM Studio is running on port 1234.\n"));
+            }
         }
     }
     rl.close();
