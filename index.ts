@@ -146,7 +146,10 @@ async function initializeApp() {
             execSync(`${lmsPath} daemon up`);
             console.log(chalk.green(" Done."));
         }
-    } catch (e) {}
+    } catch (e: any) {
+        console.log(chalk.yellow(`\n⚠ Could not reach LM Studio: ${e.message}`));
+        console.log(chalk.gray('  Continuing — first query will fail if server is offline.\n'));
+    }
     localAI = new OpenAI({ baseURL: "http://localhost:1234/v1", apiKey: "lm-studio", timeout: 60000 });
 }
 
@@ -244,12 +247,17 @@ const tools: ChatCompletionTool[] = [
 ];
 
 function resolveFilePath(filePath: string): string {
-    if (path.isAbsolute(filePath)) return filePath;
-    if (fs.existsSync(filePath)) return filePath;
-    const rootPath = path.join(PROJECT_ROOT, filePath);
-    if (fs.existsSync(rootPath)) return rootPath;
-    const runtimePath = path.join(RUNTIMES_PATH, filePath);
-    return fs.existsSync(runtimePath) ? runtimePath : filePath;
+    const candidates = [
+        filePath,
+        path.join(PROJECT_ROOT, filePath),
+        path.join(RUNTIMES_PATH, filePath),
+    ];
+    
+    for (const candidate of candidates) {
+        const resolved = path.resolve(candidate);
+        if (fs.existsSync(resolved) && isPathAllowed(resolved)) return resolved;
+    }
+    throw new Error(`File not found or outside allowed directories: ${filePath}`);
 }
 
 let toolsUsed: string[] = [];
@@ -347,24 +355,24 @@ async function main() {
     }
 
     const LOG_FILE = path.join(LOGS_DIR, `session-${SESSION_ID}.md`);
-    fs.writeFileSync(LOG_FILE, `# Lucifer Session — ${new Date().toLocaleString()}\n\n**Mode:** ${isEvolving ? 'Evolution' : 'Normal'}\n**Project:** ${PROJECT_ROOT}\n\n---\n\n`);
+    fs.writeFileSync(LOG_FILE, `# Lucifer Session — ${new Date().toLocaleString()}\n\n**Mode:** ${isEvolving ? 'Evolution' : 'Normal'}\n**Project Root:** (Abstracted)\n\n---\n\n`);
 
     let gitContext = '';
     try {
-        gitContext = `\n- Git repo: ${execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim()}, branch: ${execSync('git branch --show-current', { encoding: 'utf-8' }).trim()}`;
+        gitContext = `\n- Branch: ${execSync('git branch --show-current', { encoding: 'utf-8' }).trim()}`;
     } catch {}
 
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
     console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.8 (STABILITY PLUS) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
-    console.log(chalk.gray(`Tool Center: ${RUNTIMES_PATH}`));
-    console.log(chalk.gray(`Path: ${PROJECT_ROOT}${gitContext}\n`));
+    console.log(chalk.gray(`Tool Center: (Abstracted)`));
+    console.log(chalk.gray(`Path: (Abstracted)${gitContext}\n`));
 
     const basePrompt = `You are Lucifer, a pro agentic AI for macOS. 
     CONTEXT:
-    - Source code at ${PROJECT_ROOT}.${gitContext}
-    - Tool dashboard at ${RUNTIMES_PATH}.
+    - Project Source: (Abstracted)${gitContext}
+    - Tool dashboard: (Abstracted).
     RULES:
     1. Use surgical tools (read_file, replace_in_file) for editing.
     2. Always give text summaries. 3. Use Markdown.
