@@ -21,6 +21,7 @@ import {
     isDangerousCommand,
     applyEditFileRange,
     showVisualDiff,
+    highlightMarkdown,
     truncateOutput,
     Spinner,
     pruneHistory,
@@ -93,10 +94,18 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v9.0 (HYBRID UTILITY) — Quick Reference ===
+=== LUCIFER v9.1 (HYBRID UTILITY) — Quick Reference ===
 
-STARTUP
-  lucifer              Start assistant (normal mode)
+STARTUP / ONE-SHOT
+  lucifer "query"      One-shot answer and exit
+  cat file | lucifer   Pipe data to Lucifer for analysis
+  lucifer -c "query"   Generate and optionally execute a command
+  lucifer --json       Force output in structured JSON
+  lucifer --vision     Analyze screen and exit
+  lucifer --search     Web search and exit
+
+INTERACTIVE MODE
+  lucifer              Start interactive agent session
   lucifer --evolve     Start in system evolution mode (health check + audit)
   lucifer --index      Build/Update local codebase search index
   lucifer --rollback   Restore last stable version
@@ -498,37 +507,83 @@ async function main() {
 
     // Step 1: Detect Mode (One-Shot or Stdin Pipe)
     const isPiped = !stdin.isTTY;
-    const positionalArgs = args.filter(a => !a.startsWith('-'));
+    const isJsonMode = args.includes('--json');
+    const isCommandMode = args.includes('--command') || args.includes('-c');
+    
+    let visionQuery: string | undefined;
+    let searchQuery: string | undefined;
+    const visionIdx = args.indexOf('--vision');
+    const searchIdx = args.indexOf('--search');
+    
+    if (visionIdx !== -1) visionQuery = args[visionIdx + 1] || "";
+    if (searchIdx !== -1) searchQuery = args[searchIdx + 1] || "";
+
+    const positionalArgs = args.filter((a, i) => {
+        if (a.startsWith('-')) return false;
+        if (i > 0 && ['--vision', '--search'].includes(args[i-1] || "")) return false;
+        return true;
+    });
     const oneShotQuery = positionalArgs.join(' ');
 
-    if (isPiped || oneShotQuery) {
+    if (isPiped || oneShotQuery || visionQuery || searchQuery) {
         let pipedData = "";
         if (isPiped) {
-            // Read from pipe
             const chunks = [];
             for await (const chunk of stdin) chunks.push(chunk);
             pipedData = Buffer.concat(chunks).toString('utf-8');
         }
 
-        const fullPrompt = `${oneShotQuery}${pipedData ? '\n\nCONTEXT:\n' + pipedData : ''}`;
+        let fullPrompt = `${oneShotQuery}${pipedData ? '\n\nCONTEXT:\n' + pipedData : ''}`;
         
+        // Mode mapping
+        if (visionQuery) {
+            console.log(chalk.magenta("  [Vision] Analyzing screen..."));
+            const result = await seeScreen(visionQuery);
+            console.log(`\n${highlightMarkdown(result)}\n`);
+            process.exit(0);
+        }
+
+        if (searchQuery) {
+            console.log(chalk.blue(`  [Search] Researching: ${searchQuery}...`));
+            const result = await executeTool("search_web", { query: searchQuery });
+            console.log(`\n${highlightMarkdown(result)}\n`);
+            process.exit(0);
+        }
+
+        if (isJsonMode) fullPrompt += "\n\nRespond ONLY in valid JSON format.";
+        if (isCommandMode) fullPrompt += "\n\nRespond ONLY with the single most appropriate macOS terminal command to achieve this. Do not include markdown blocks or explanations.";
+
         if (!localAI) throw new Error("Local AI (LM Studio) not initialized.");
         const spinner = new Spinner("Lucifer is processing...");
         spinner.start();
         
         try {
-            const stream = await localAI.chat.completions.create({
+            const response = await localAI.chat.completions.create({
                 model: "qwen2.5-coder-7b-instruct-mlx",
                 messages: [{ role: "user", content: fullPrompt }],
-                stream: true
+                stream: false
             });
             spinner.stop();
-            console.log("");
-            for await (const chunk of stream) {
-                const content = chunk.choices[0]?.delta?.content || "";
-                process.stdout.write(content);
+            
+            const rawOutput = response.choices[0]?.message?.content || "";
+            const output = highlightMarkdown(rawOutput);
+            console.log(`\n${output}\n`);
+
+            if (isCommandMode) {
+                const command = rawOutput.trim().replace(/^`+|`+$/g, '');
+                const approved = await rl.question(chalk.yellow(`  Execute this command? (y/n/explain): `));
+                if (approved.toLowerCase() === 'y') {
+                    const { stdout, stderr } = await execAsync(command);
+                    if (stdout) console.log(chalk.gray(stdout));
+                    if (stderr) console.error(chalk.red(stderr));
+                } else if (approved.toLowerCase() === 'e' || approved.toLowerCase() === 'explain') {
+                    const explanation = await localAI.chat.completions.create({
+                        model: "qwen2.5-coder-7b-instruct-mlx",
+                        messages: [{ role: "user", content: `Explain exactly what this macOS command does: ${command}` }]
+                    });
+                    console.log(`\n${highlightMarkdown(explanation.choices[0]?.message?.content || "")}\n`);
+                }
             }
-            console.log("\n");
             process.exit(0);
         } catch (e: any) {
             spinner.stop("Failed.", 'red');
@@ -557,7 +612,7 @@ async function main() {
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
     const projectFolder = path.basename(PROJECT_ROOT);
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v9.0 (HYBRID UTILITY) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v9.1 (HYBRID UTILITY) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: ~/${projectFolder}${gitContext}\n`));

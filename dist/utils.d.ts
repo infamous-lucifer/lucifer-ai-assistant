@@ -17,6 +17,7 @@ export declare function applyEditFileRange(fileText: string, startLine: number, 
     error: string;
 };
 export declare function showVisualDiff(oldText: string, newText: string, fileName: string): void;
+export declare function highlightMarkdown(text: string): string;
 export declare function truncateOutput(text: string, maxChars?: number): string;
 export declare class Spinner {
     private message;

@@ -401,3 +401,36 @@ The engine was hardened with **Context Protection** (truncation), **Loop Guardin
 
 ---
 **Status:** Release v8.0 Complete. Lucifer is now a resilient, high-performance, and truly professional macOS developer partner.
+
+# 🛠 Lucifer Evolution: Phase 14 (Professional Utility & v9.1 UNIX Alignment)
+
+In Phase 14, we fully embraced the UNIX philosophy: "One input ➔ One output ➔ Terminate." We expanded the Hybrid Utility Engine with high-efficiency features that make Lucifer as predictable as `git` or `gh`, while retaining the power of a private local model.
+
+## 📋 Evolution Summary
+The system was upgraded with **Terminal UX** (syntax highlighting), **Input Flexibility** (stdin support), and **Interaction Hooks** (y/n/explain for commands). This allows the user to use Lucifer as a surgical tool for data processing and shell automation without the overhead of an agentic loop.
+
+## 🛠 Professional Utility (v9.1)
+| Feature | Status in v8.0 | Status in v9.1 (Final) |
+| :--- | :--- | :--- |
+| **Output Style** | Raw Plain Text | **Markdown Syntax Highlighting** |
+| **Input Flow** | Args only | **Native Stdin/Pipe Support** |
+| **Command Flow**| Generation only | **Interactive `y/n/explain` Loop** |
+| **Data Output** | Narrative | **Structured `--json` Mode** |
+| **Aliasing** | Tools only | **First-class `--vision` and `--search`** |
+
+## 🚀 Phase 14: Key Implementations
+
+### 1. Terminal Syntax Highlighting
+- Implemented `highlightMarkdown` in `utils.ts` to automatically colorize code blocks, bold text, and inline code in terminal responses.
+- This dramatically improves the readability of Qwen's code suggestions without adding external UI dependencies.
+
+### 2. Secure Command Execution (`y/n/explain`)
+- Upgraded the `--command` (`-c`) flag with a deterministic feedback loop.
+- Lucifer now generates a command, shows it to the user, and offers an `explain` option (using the model to describe the command) before execution.
+
+### 3. Structured Data & Piping
+- Introduced the `--json` flag to force model responses into machine-readable formats.
+- Solidified stdin piping support, allowing Lucifer to be used in shell chains: `git diff | lucifer "summarize" > commit.txt`.
+
+---
+**Status:** Release v9.1 Complete. Lucifer is now a high-speed, high-safety AI utility for the macOS terminal.

@@ -1,15 +1,17 @@
-# 👹 Lucifer AI Assistant (Hybrid v8.0)
+# 👹 Lucifer AI Assistant (Hybrid v9.1)
 
-**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 8.0 introduces the **Resilient Core**, featuring hardened context management, autonomous loop protection, and OOM-safe indexing.
+**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 9.1 introduces the **Professional Utility**, adding a suite of high-efficiency terminal features that align with the UNIX philosophy.
 
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
-- **Resilient Core (v8.0):** Automatic context window hardening (output truncation) and duplicate call guards to prevent model thrashing.
-- **macOS Control:** Safe, safelisted system control via the `control_macos` tool (Dark Mode, Volume, Window info).
-- **Modern UX:** Native terminal spinners for all reasoning and background tasks.
+- **Natural UNIX UX (v9.1):** Support for stdin piping, one-shot execution, and automatic terminal markdown highlighting.
+- **Interactive Command Suggest (`-c`):** Generates shell commands with a secure `y/n/explain` interactive loop.
+- **Structured JSON Mode:** Dedicated `--json` flag to force the model to output machine-readable data.
+- **Vision & Search Aliases:** Direct one-shot access to vision and web research via `--vision` and `--search` flags.
+- **Resilient Core:** Automatic context window hardening (output truncation) and duplicate call guards.
 - **Industrial Core:** Deterministic stability guards including pre-flight tool validation and a mandatory "Read-Before-Write" security lock.
+- **macOS Control:** Safe, safelisted system control via the `control_macos` tool.
 - **OOM-Safe Search:** Optimized local search indexing with file-size guards and binary filtering.
-- **Visual Safety:** Interactive Git-style diffs for all file edits.
 - **Manifest-Driven:** Configuration (tools, security rules, paths) is decoupled into `lucifer-manifest.json` for easy updates.
 - **System Agency:** Lucifer can run terminal commands, manage files, and research updated syntax or docs online.
 - **Persistence:** Markdown session logs (`~/.lucifer-logs`) with automatic log rotation (keeps last 50).
@@ -27,6 +29,7 @@
 | **v6.0** | Professional Core | Interactive diffs, autonomous verification loop, and local search index. |
 | **v7.1** | Industrial Core | Pre-flight validator, Read-Before-Write lock, and guided `!fix` pipeline. |
 | **v8.0** | Resilient Core | Context hardening, loop protection, macOS control, and OOM-safe indexing. |
+| **v9.1** | Professional Utility | Stdin piping, one-shot commands, terminal syntax highlighting, and interactive command execution. |
 
 - `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
 - `package.json`: Project configuration and dependencies.

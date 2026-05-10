@@ -74,6 +74,22 @@ export function showVisualDiff(oldText: string, newText: string, fileName: strin
     console.log(chalk.cyan('\n--- END DIFF ---\n'));
 }
 
+export function highlightMarkdown(text: string): string {
+    // Highlight code blocks
+    let highlighted = text.replace(/```([\s\S]*?)```/g, (match, code) => {
+        return chalk.bgBlack.gray(match);
+    });
+    // Highlight inline code
+    highlighted = highlighted.replace(/`([^`]+)`/g, (match, code) => {
+        return chalk.yellow(match);
+    });
+    // Highlight bold text
+    highlighted = highlighted.replace(/\*\*([^*]+)\*\*/g, (match, content) => {
+        return chalk.bold.cyan(content);
+    });
+    return highlighted;
+}
+
 export function truncateOutput(text: string, maxChars: number = 2000): string {
     if (text.length <= maxChars) return text;
     const half = Math.floor((maxChars - 50) / 2);
