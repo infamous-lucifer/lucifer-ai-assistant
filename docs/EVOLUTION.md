@@ -1,436 +1,55 @@
-# 🧬 Lucifer Evolution: Phase 2 (Hybrid Intelligence)
+# 🛠 The Evolution of Lucifer: An Honest Architectural History
 
-This document tracks the transition of Lucifer to a high-performance, cost-effective hybrid architecture optimized for the M5 chip.
-
-## 📋 Evolution Summary
-In Phase 2, we decoupled "Reasoning/Coding" from "Vision". By moving the main brain to a local model, we achieved unlimited usage and zero-latency interactions while maintaining advanced vision capabilities.
-
-## 🛠 Architectural Changes (Hybrid)
-| Feature | Phase 1 (API Only) | Phase 2 (Hybrid) |
-| :--- | :--- | :--- |
-| **Primary Brain** | Gemini 2.5 Flash (API) | **Qwen 2.5 Coder 7B (Local)** |
-| **Vision Brain** | Gemini 1.5 Flash (API) | Gemini 1.5 Flash (API) |
-| **Inference Cost** | Quota Limited | **Unlimited (Local)** |
-| **Latency** | Network Dependent | **Instantaneous** |
-| **Protocol** | Google GenAI SDK | **OpenAI Compatible (via LM Studio)** |
+This document tracks the journey of Lucifer from a basic chat interface to an industrially-hardened AI Utility Engine. It documents the pivots, the failures, and the engineering breakthroughs that led to v9.1.
 
 ---
 
-# 🛡️ Lucifer Evolution: Phase 3 (Hardening, UX & v4.5 Deep Insight)
+## 📍 Phase 1: The API Wrapper (v1.0 - v2.4)
+**Identity:** A simple CLI for the Gemini API.
+- **The Concept:** A basic Node.js script that took user input and sent it to Google's cloud.
+- **The Failure:** High latency, strictly limited by API quotas, and zero awareness of the local machine. It was a "Chatbot in a Box."
 
-In Phase 3, we transitioned from a prototype to a production-grade tool by closing the gap between documentation and implementation, while preparing for a "2026-ready" feature set.
+## 📍 Phase 2: The Hybrid Leap (v2.5 - v4.3)
+**Identity:** Local Reasoning + Cloud Vision.
+- **The Concept:** Integrated **LM Studio** to run Qwen 7B locally. This made coding assistance "infinite" and private.
+- **The Breakthrough:** Added `!screen` to bridge local code with cloud-based vision (Gemini 2.0).
 
-## 📋 Evolution Summary
-The focus shifted to **Reliability, UX, and Observability**. We implemented streaming logic, session logging, and advanced system diagnostics to make Lucifer a truly professional macOS partner.
+## 📍 Phase 3: The "Agentic" Ambition (v4.4 - v6.2)
+**Identity:** The Autonomous Struggle.
+- **The Concept:** We attempted to build a fully autonomous agent (ReAct loop) that could search, read, edit, and test code on its own.
+- **The Reality Check:** This is where the project hit the **"7B Intelligence Gap."** A 7B model running on an M5 Air cannot reliably juggle 10+ tools in a 4000-token context window. 
+- **The Failures:** 
+    - **Language Hallucination:** Model would search for Python code in a TypeScript project.
+    - **Logic Loops:** Model would get stuck repeating the same failing tool call.
+    - **Context Collapse:** Large files would fill the memory, causing the model to output gibberish.
 
-## 🛠 Feature Realization (v4.5)
-| Feature | Status in v3.5 | Status in v4.5 (Final) |
-| :--- | :--- | :--- |
-| **Vision Bridge** | Initialized but unused | **Fully Functional** (v1.x SDK & Gemini 2.0) |
-| **Security Rails** | Documented only | **Enforced** (Command Block-list) |
-| **UX Feedback** | Silent reasoning | **Streaming Output & Thinking Indicator** |
-| **Persistence** | Ephemeral only | **Markdown Session Logs** (`~/.lucifer-logs`) |
-| **Diagnostics** | Basic uptime | **Deep Insight** (Memory pressure, CPU, Network) |
-| **Onboarding** | No guidance | **Setup Wizard & Health Check** (`--setup`) |
+## 📍 Phase 4: The Industrial Pivot (v7.0 - v8.0)
+**Identity:** Stability over "Magic."
+- **The Shift:** We abandoned "Agentic Autonomy" for **Guided Determinism**.
+- **The Hardening:**
+    - **Pre-Flight Validator:** Node.js intercepts bad AI thoughts (like searching for the wrong language) and blocks them.
+    - **Read-Before-Write Lock:** A physical safety lock that prevents the AI from "guessing" line numbers.
+    - **Output Truncation:** Hard caps on tool results to protect the 4000-token memory.
+    - **OOM Guards:** Prevented indexing crashes by ignoring massive or binary files.
 
-## 🚀 Phase 3: Technical Refinements
-
-### 1. UX & Streaming
-- Restructured the agentic loop to support real-time token streaming.
-- Added a `\r` based thinking indicator and macOS notifications for long tasks.
-
-### 2. Observability (Deep Insight)
-- Replaced basic system info with `get_deep_system_report`.
-- Integrated `vm_stat`, `sysctl`, and `ioreg` to provide a professional level of system awareness.
-
-### 3. API & Code Integrity
-- Fixed a critical OpenAI compatibility bug where `tool_calls: undefined` was sent to the model.
-- Verified 100% type-safety using `tsc --noEmit`.
-
----
-**Status:** Release v4.5 Complete. Lucifer is now a stable, high-observability, and production-ready macOS assistant.
-
-# 🛡️ Lucifer Evolution: Phase 4 (Security Hardening & v4.6 Production Readiness)
-
-In Phase 4, we addressed critical security vulnerabilities identified during a comprehensive audit. The focus was on protecting the host system from malicious prompt injections and unauthorized filesystem access.
-
-## 📋 Evolution Summary
-The system transitioned from a "soft blocklist" security model to an **Aggressive Sandboxing & Mandatory Approval** model. This ensures that even if the AI is compromised via prompt injection, it cannot execute destructive commands or exfiltrate sensitive files without human consent.
-
-## 🛠 Security Hardening (v4.6)
-| Feature | Status in v4.5 | Status in v4.6 (Final) |
-| :--- | :--- | :--- |
-| **Command Safety** | Passive Blocklist (4 patterns) | **Active Approval & Danger Pattern Matching** |
-| **Filesystem Safety**| Unrestricted access | **Path Traversal Protection (Allowlist only)** |
-| **Input Integrity** | Direct clipboard injection | **Demarcated & Untrusted Injection Defense** |
-| **Race Conditions** | Module-level uninitialized globals | **Optional Initialization with Guard Checks** |
-
-## 🚀 Phase 4: Key Implementations
-
-### 1. Mandatory Human-in-the-Loop
-- All `run_command` executions now pause for manual user confirmation ('y/n').
-- Added an advanced `DANGER_PATTERNS` regex engine to flag suspicious commands before the approval prompt.
-
-### 2. Filesystem Sandboxing
-- Implemented `isPathAllowed` to restrict file tools (`read_file`, `replace_in_file`, `propose_fix`) to the Project Root and Runtime directories.
-- Prevents exfiltration of SSH keys, system configs, or user documents.
-
-### 3. Prompt Injection Defense
-- Clipboard content (`!clip`) is now wrapped in `<untrusted_clipboard_content>` tags.
-- The system prompt instructions were hardened to prevent the model from following commands found within the clipboard.
-
-### 4. Race Condition & Type Safety
-- Refactored global AI instances (`ai`, `localAI`) to be optional with explicit null checks to prevent runtime race conditions during startup.
-- Transitioned the entire tool execution pipeline to an asynchronous flow to support interactive user approvals.
+## 📍 Phase 5: The Utility Engine (v9.0 - v9.1)
+**Identity:** The AI Swiss Army Knife.
+- **The Pivot:** We realized that Lucifer is most powerful as a **UNIX Pipe**. 
+- **The Breakthrough:** Added native `stdin` support and **One-Shot** execution.
+- **Final Result:** Lucifer v9.1 is no longer a bot that "wanders" your computer. It is a deterministic, high-speed power tool. It does exactly what you command, integrates with your shell scripts, and provides high-precision code manipulation with interactive diffs.
 
 ---
-**Status:** Release v4.6 Complete. Lucifer is now a security-hardened, production-ready agent.
 
-# 🏗️ Lucifer Evolution: Phase 5 (Architectural Refinement & v4.7 Production Polish)
+## 📈 Milestone Summary
 
-In Phase 5, we moved beyond baseline security into high-level engineering standards. We addressed deep-seated architectural issues related to type safety, error handling, and tool precision.
-
-## 📋 Evolution Summary
-The system was refactored to utilize **Strict TypeScript Interfaces** and **Robust Runtime Validation**. This phase ensures that Lucifer is not only secure but also reliable and predictable in its tool usage, preventing silent failures and "zombie" temporary files.
-
-## 🛠 Architectural Refinements (v4.7)
-| Feature | Status in v4.6 | Status in v4.7 (Final) |
+| Version | Milestone | The "Honest" Result |
 | :--- | :--- | :--- |
-| **Type Safety** | `any` casts everywhere | **Strict Interfaces & SDK-Native Types** |
-| **Tool Precision** | Loose `.replace()` | **Surgical Uniqueness Checks** |
-| **Resource Safety**| Possible temp file leaks | **Try/Finally Cleanup with Unique IDs** |
-| **Context Control** | Late history truncation | **Pre-turn Context Pruning** |
-| **Fix Reporting** | Missing issue context | **Comprehensive Fix Proposal Generation** |
-
-## 🚀 Phase 5: Key Implementations
-
-### 1. SDK-Native Type Safety
-- Defined the `tools` array using OpenAI's `ChatCompletionTool[]` type, ensuring schema compliance at build time.
-- Implemented strict interfaces (`RunCommandArgs`, `ReadFileArgs`, etc.) for all tool payloads.
-- Added runtime validation to `executeTool` to safely handle malformed JSON from the model.
-
-### 2. Surgical Tool Precision
-- Upgraded `replace_in_file` to verify that the `old_string` occurs **exactly once**. This prevents accidental "multi-point" edits and ensures surgical accuracy.
-- Updated tool descriptions to explicitly instruct the model on how to provide unique strings.
-
-### 3. Resource & Context Management
-- Fixed a potential temp file leak in `seeScreen` by wrapping the screenshot logic in a `try/finally` block.
-- Implemented unique timestamped filenames for screenshots to support concurrent/sequential vision calls without clobbering.
-- Optimized history truncation to occur **before** the model turn starts, ensuring the context window is always within safe limits.
-
-### 4. Observability & Propose Fix
-- Enhanced `propose_fix` to utilize the `issue` parameter, generating a much more useful `REVIEW_REQUEST.md` that includes the bug description alongside the suggested code.
+| **v1.0** | API Wrapper | Expensive and slow. |
+| **v2.5** | Hybrid Core | Blazing fast local code reasoning. |
+| **v4.6** | Security Hardened | First version you could safely run. |
+| **v5.4** | Precision Pipeline | Line-numbers fixed the "guess-work" edits. |
+| **v7.1** | Industrial Core | Finally stopped the reasoning loops. |
+| **v9.1** | Professional Utility | Achieved 100% reliability via Pipe & One-Shot. |
 
 ---
-**Status:** Release v4.7 Complete. Lucifer is now a professional-grade, type-safe, and highly reliable AI assistant.
-
-# 🧹 Lucifer Evolution: Phase 6 (Stability, Polish & v4.8 Production Resilience)
-
-In Phase 6, we focused on "Living Quality" and long-term project health. We addressed edge cases in environment configuration, filesystem maintenance, and dependency management.
-
-## 📋 Evolution Summary
-The system was hardened against **Environmental Inconsistency** and **Resource Accumulation**. This phase ensures that Lucifer remains stable over months of continuous use, with predictable dependency behavior and automated cleanup.
-
-## 🛠 Stability & Polish (v4.8)
-| Feature | Status in v4.7 | Status in v4.8 (Final) |
-| :--- | :--- | :--- |
-| **Log Management** | Indefinite accumulation | **Automated Rotation (Keep last 50)** |
-| **Shell Security** | Direct `open` calls | **Sanitized `execFileSync` Path Execution** |
-| **Config Loading** | Inconsistent environmentals | **Unified `~/.lucifer-env` Dotenv Loading** |
-| **Dependencies** | Loose version ranges (`^`) | **Pinned Exact Versions for Predictability** |
-| **UX Intrusion** | Buffer-clearing `console.clear()` | **Non-Destructive Separator UI** |
-| **Tool Robustness** | Sparse array edge cases | **Undefined Index Guards in Streaming** |
-
-## 🚀 Phase 6: Key Implementations
-
-### 1. Resource Maintenance (Log Rotation)
-- Implemented a maintenance check at startup that scans `~/.lucifer-logs/`.
-- Automatically purges session logs older than the last 50 files, preventing disk bloat.
-
-### 2. Shell & Config Hardening
-- Transitioned from `execSync` with template literals to `execFileSync` for log opening. This provides a hard layer of protection against path-based shell injections.
-- Refactored `inspect.ts` to utilize the same centralized `~/.lucifer-env` file as the main engine, ensuring a unified configuration experience.
-
-### 3. Supply Chain Stability
-- Pinned all `dependencies` and `devDependencies` in `package.json` to exact versions. This eliminates the risk of "stealth" breaking changes being introduced during routine `npm install` runs.
-
-### 4. UI/UX Refinement
-- Removed the aggressive `console.clear()` command in favor of a styled horizontal separator. This allows users to retain their terminal scrollback history while still providing a clear start to each session.
-- Added defensive checks in the token streaming loop to safely handle chunks that might arrive without an index (guarding against sparse `toolCalls` arrays).
-
----
-**Status:** Release v4.8 Complete. Lucifer is now a resilient, self-maintaining, and environmentally consistent assistant.
-
-# 🧠 Lucifer Evolution: Phase 7 (The Adaptive Core & v5.0 Self-Healing)
-
-In Phase 7, we solved the "Obsolescence Problem." Previously, Lucifer was bound by hardcoded commands and security patterns that could become stale. We transitioned to a dynamic, learning-capable architecture designed to thrive in a changing industry.
-
-## 📋 Evolution Summary
-The system was refactored into the **Adaptive Core**. This architecture decouples logic (how to run) from data (what to run) via a centralized Manifest, while empowering the AI with autonomous research capabilities to fix its own errors in real-time.
-
-## 🛠 Adaptive Core (v5.1)
-| Feature | Status in v4.8 | Status in v5.1 (Final) |
-| :--- | :--- | :--- |
-| **Logic Storage** | Hardcoded in TypeScript | **Decoupled `lucifer-manifest.json`** |
-| **Error Handling** | Generic catch / Halt | **Stderr Capture & Comprehension** |
-| **Learning** | Static knowledge only | **Autonomous `search_web` Research** |
-| **Maintenance** | Manual code audit | **Dependency & System Audit Loop** |
-| **UX Efficiency** | Reasoning-only access | **Direct Shortcuts (`!search`, `!report`, `!test`, etc.)** |
-| **Resilience** | Brittle to command changes | **Dynamic Self-Healing Retry Loop** |
-
-## 🚀 Phase 7: Key Implementations
-
-### 1. The Manifest System
-- Extracted all security `DANGER_PATTERNS`, `tool` definitions, and environment dependencies into `lucifer-manifest.json`.
-- This allows Lucifer to update its own "brain" and security rules during evolution audits without requiring a full code rebuild.
-
-### 2. Autonomous Self-Healing (Diagnose & Retry)
-- Upgraded `run_command` to return full `stderr` to the model context.
-- Implemented a reasoning loop where Lucifer analyzes execution failures and uses the new `search_web` tool (via `ddgr`) to find updated syntax or documentation.
-- The assistant now repairs its own pathing or syntax errors before prompting the user for approval.
-
-### 3. Shortcut Expansion & Hardware Integration
-- Added high-efficiency direct commands (`!report`, `!read`, `!test`, `!status`, `!lms`) to provide instant hardware and tool access without model latency.
-- These shortcuts integrate directly with the Adaptive Core logic, ensuring session logs remain consistent regardless of how a tool is triggered.
-
-### 4. Evolution 2.0
-- Reimagined `--evolve` from a simple code auditor into a proactive system maintainer.
-- Added integration with terminal diagnostics (`npm outdated`) to identify system-level maintenance needs and propose manifest updates via `REVIEW_REQUEST.md`.
-
----
-**Status:** Release v5.1 Complete. Lucifer is now a truly autonomous agent with direct research capabilities.
-
-# 🛡️ Lucifer Evolution: Phase 8 (Resiliency Plus & v5.2 Context Hardening)
-
-In Phase 8, we addressed critical logic flaws related to context synchronization and agentic loop stability. This phase ensures that "What the User Sees, the Model Knows."
-
-## 📋 Evolution Summary
-The core engine was hardened against **Context Isolation** (shortcuts now feed the history) and **OpenAI Schema Violations** (pruning now respects tool-call pairs). We also improved streaming reliability for local inference engines.
-
-## 🛠 Resiliency Plus (v5.2)
-| Feature | Status in v5.1 | Status in v5.2 (Final) |
-| :--- | :--- | :--- |
-| **Shortcut Context** | Isolated from model | **Synchronized Synthetic History** |
-| **History Pruning** | Naive slicing (Orphan risk) | **Context-Aware Pair Preservation** |
-| **Loop Visibility** | Silent drops at step 5 | **Explicit Maximum Step Warnings** |
-| **Stream Parsing** | Vulnerable to sparse arrays | **Gap-Sanitized Tool Call Arrays** |
-| **Execution Architecture** | Blocking `execSync` | **Synchronous but Timeout-Hardened** |
-
-## 🚀 Phase 8: Key Implementations
-
-### 1. Unified Context (Synthetic History)
-- Every direct shortcut command (`!search`, `!report`, `!read`, etc.) now automatically injects its results back into the AI's history array.
-- This ensures the model can reference, summarize, or act upon results retrieved via high-efficiency shortcuts.
-
-### 2. Context-Aware Pruning
-- Refactored `pruneHistory` to specifically detect and prevent orphaned `tool` response messages.
-- The system now ensures that if a tool call is pruned, its response is also removed, maintaining strict compatibility with the LM Studio / OpenAI API schema.
-
-### 3. Agentic Loop Hardening
-- Added an explicit warning when the ReAct loop reaches the 5-step autonomous limit.
-- Implemented `filter(Boolean)` on tool call arrays to handle irregular chunk emissions from local MLX/llama.cpp engines, preventing runtime crashes during sparse array processing.
-
----
-**Status:** Release v5.2 Complete. Lucifer is now the most resilient and context-consistent agentic assistant in its class.
-
-# 🚀 Lucifer Evolution: Phase 9 (Local Optimized Core & v5.3 Deterministic Logic)
-
-In Phase 9, we pivoted the architecture to accommodate the constraints of local 7B parameter models on 16GB RAM hardware (M5 Air). We shifted heavy cognitive load from the AI's reasoning engine to deterministic Node.js logic.
-
-## 📋 Evolution Summary
-The core engine was refactored for **reliability** over **orchestration**. We replaced brittle tools (string-matching) with fault-tolerant ones (line-numbers) and un-blocked the main process with asynchronous execution.
-
-## 🛠 Local Optimized Core (v5.3)
-| Feature | Status in v5.2 | Status in v5.3 (Final) |
-| :--- | :--- | :--- |
-| **Command Execution** | Blocking `execSync` | **Async `exec` with 30s Timeout** |
-| **File Editing** | Brittle String Matching | **Reliable Line-Based Replacement** |
-| **System Evolution** | LLM-Orchestrated | **Deterministic Node.js Pipeline** |
-| **Prompting** | High Cognitive Load | **Strict, Rule-Bound Constraints** |
-| **Event Loop** | Vulnerable to Hangs | **Fully Non-Blocking Architecture** |
-
-## 🚀 Phase 9: Key Implementations
-
-### 1. Asynchronous Execution Wrapper
-- Swapped `execSync` for a promisified `exec` wrapper. This keeps the Lucifer CLI responsive during long-running tasks and allows for graceful timeouts.
-- Every command now returns a structured `STDOUT`/`STDERR` block, providing the model with clearer diagnostic data without blocking the user.
-
-### 2. Bulletproof Line-Based Editing
-- Deprecated exact string matching for `replace_in_file`. The tool now requires `start_line` and `end_line`.
-- This eliminates failures caused by minor whitespace or formatting discrepancies, which are common in 7B parameter models.
-
-### 3. Hardcoded Evolution Logic
-- Refactored `--evolve` into a deterministic script. The system now parses `npm outdated` JSON in Node.js and only uses the model for targeted reasoning on specific package updates.
-- This prevents "Context Collapse" during complex system audits and ensures the `REVIEW_REQUEST.md` is always correctly formatted.
-
----
-**Status:** Release v5.3 Complete. Lucifer is now perfectly tuned for high-performance local AI execution on Apple Silicon.
-
-# 🎯 Lucifer Evolution: Phase 10 (High-Precision Pipeline & v5.4 Surgical Accuracy)
-
-In Phase 10, we implemented a dedicated **Search -> Read -> Edit** pipeline to solve the "Exact Coordinate" problem for local 7B models. This allows the model to find, inspect, and modify code with mathematical precision.
-
-## 📋 Evolution Summary
-The core file-handling tools were upgraded to provide the model with "visual anchors" (line numbers). We added a native `grep` search tool to find code instantly and renamed the editor to `edit_file_lines` to standardize the workflow around line-based accuracy.
-
-## 🛠 Precision Pipeline (v5.4)
-| Feature | Status in v5.3 | Status in v5.4 (Final) |
-| :--- | :--- | :--- |
-| **Search Engine** | Manual `run_command` | **Native `search_codebase` (grep)** |
-| **Reading Mode** | Raw Text Output | **Numbered Blocks `[Line X]`** |
-| **Editing Mode** | Partial Line-Based | **Standardized `edit_file_lines`** |
-| **Workflow** | Task-Based | **Search -> Read -> Edit Pipeline** |
-
-## 🚀 Phase 10: Key Implementations
-
-### 1. Native Grep Search (`search_codebase`)
-- Implemented a specialized tool that uses macOS native `grep` to recursively search for strings or regex.
-- Returns exact file paths and line numbers, giving the model a starting coordinate for any task.
-
-### 2. Numbered Visual Anchors
-- Refactored `read_file` to automatically prefix every line with a `[Line X]` tag.
-- This forces the model to perceive the file's structure in terms of indices, making it nearly impossible for a 7B model to "guess" or hallucinate wrong line numbers during an edit.
-
-### 3. Surgical Edit Standardization
-- Renamed the line-based editor to `edit_file_lines` and standardized its parameters.
-- The model now confidently uses the numbers retrieved in the Search/Read steps to perform 100% accurate code injections.
-
----
-**Status:** Release v5.4 Complete. Lucifer is now a high-precision surgical agent capable of autonomous codebase manipulation with zero hallucination risk.
-
-# 🎩 Lucifer Evolution: Phase 11 (The Professional Core & v6.0 Safety/Context)
-
-In Phase 11, we bridged the gap between our local model and "Massive Core" agents like Claude Code. We implemented industry-standard features that ensure every action is verified, visually audited, and conceptually informed.
-
-## 📋 Evolution Summary
-The architecture was upgraded with **Interactive Safety** (Diffs), **Autonomous Verification** (TDD loop), and **Conceptual Memory** (Semantic Search). This ensures Lucifer acts with the maturity of a senior engineer rather than a simple script executor.
-
-## 🛠 Professional Core (v6.0)
-| Feature | Status in v5.4 | Status in v6.0 (Final) |
-| :--- | :--- | :--- |
-| **Safety Audit** | Invisible Edits | **Interactive Terminal Diffs (Red/Green)** |
-| **Verification** | User-Reported Errors | **Autonomous TDD Loop (Auto-Check)** |
-| **Code Search** | Text-Match Only (grep) | **Conceptual Semantic Search (MiniSearch)** |
-| **User Control** | Blind Approval | **Audit-First confirmation (`y/n`)** |
-
-## 🚀 Phase 11: Key Implementations
-
-### 1. Interactive Terminal Diffs
-- Integrated the `diff` library to generate Git-style visual comparisons before any code is modified.
-- Every `edit_file_lines` call now pauses to show exactly what is being added and removed, requiring explicit user consent.
-
-### 2. Autonomous Verification (TDD Loop)
-- Implemented a post-edit verification step. After an edit is applied, Lucifer automatically attempts to build/test the project.
-- If the edit breaks the code, Lucifer captures the error context and remains in the agentic loop to attempt an autonomous fix, preventing "Silent Breaking" of the codebase.
-
-### 3. Local Semantic Search (Conceptual Indexing)
-- Added `minisearch` to index the entire codebase locally. 
-- Lucifer can now find code based on **concepts** (e.g., "Where are tools defined?") even if the exact keyword isn't present in the search term.
-- Added the `--index` command for manual index maintenance.
-
----
-**Status:** Release v6.0 Complete. Lucifer is now a professional-grade, high-safety agentic assistant for macOS.
-
-# 🧱 Lucifer Evolution: Phase 12 (The Industrial Core & v7.1 Hardened Stability)
-
-In Phase 12, we completed the "Stability Pivot." We abandoned the fragile agentic loop for a deterministic **Industrial Core** that enforces strict logic and security at the Node.js level.
-
-## 📋 Evolution Summary
-The core engine was hardened with **Pre-Execution Guards** (Validator) and **State-Based Security** (Read-Before-Write lock). We also addressed multiple high-severity security issues found in a senior audit, including shell injection prevention and unverified binary downloads.
-
-## 🛠 Industrial Core (v7.1)
-| Feature | Status in v6.0 | Status in v7.1 (Final) |
-| :--- | :--- | :--- |
-| **Logic Type** | Agentic Reasoning | **Deterministic Industrial Core** |
-| **Safety Guard** | Blind Reasoning | **Pre-Flight Tool Validation** |
-| **Edit Lock** | None (Hallucination risk) | **Mandatory Read-Before-Write Lock** |
-| **Fix Pipeline** | ReAct Loop (Derailable) | **Guided `!fix` Scripted Pipeline** |
-| **Shell Security** | Vulnerable Interpolation | **Secure `execFileSync` Argument Arrays** |
-| **Binary Sync** | Unverified Downloads | **SHA256 Checksum Verification** |
-
-## 🚀 Phase 12: Key Implementations
-
-### 1. Deterministic Stability Guards
-- **Pre-Flight Validator:** Node.js now intercepts search commands and blocks language hallucinations (e.g., Python syntax in a TS project) before wasting model cycles.
-- **Read-Before-Write Lock:** Hardcoded a state constraint that prevents file edits unless the model has verified visual anchors by reading the file first.
-
-### 2. Security & Supply Chain Hardening
-- **Shell Injection Prevention:** Standardized on `execFileSync` and safe argument arrays for all search and system tools, eliminating risks from shell interpolation.
-- **Checksum Verification:** Added SHA256 verification to the `syncDependencies` system. Lucifer now refuses to run tools unless they match their expected identity.
-
-### 3. Guided Auto-Repair (`!fix`)
-- Created a specialized high-precision pipeline that autonomously searches, reads, and prepares context for the LLM.
-- This ensures bug fixes are handled with 100% reliability and minimal model drift.
-
----
-**Status:** Release v7.1 Complete. Lucifer is now the most stable, secure, and industrially-hardened local agent available.
-
-# 🚀 Lucifer Evolution: Phase 13 (The Resilient Core & v8.0 Production Reliability)
-
-In Phase 13, we reached "Production Reliability." We addressed the remaining architectural vulnerabilities that could cause crashes or reasoning failures on local hardware, specifically focusing on context management and loop stability.
-
-## 📋 Evolution Summary
-The engine was hardened with **Context Protection** (truncation), **Loop Guarding** (duplicate call prevention), and **Memory Stability** (OOM-safe indexing). We also improved the user experience with native spinners and introduced safe, restricted macOS system control.
-
-## 🛠 Resilient Core (v8.0)
-| Feature | Status in v7.1 | Status in v8.0 (Final) |
-| :--- | :--- | :--- |
-| **Context Window** | Vulnerable to overflow | **Hardened via Output Truncation** |
-| **Loop Stability** | Thrashing risk | **Duplicate Call Guard (Hashed)** |
-| **Memory Safety** | OOM risk during indexing | **File-Size & Binary Guards** |
-| **User Interface** | Static/Blocking | **Interactive Native Spinners** |
-| **macOS Integration**| raw `run_command` | **Safelisted `control_macos` tool** |
-
-## 🚀 Phase 13: Key Implementations
-
-### 1. Context & Token Hardening
-- Implemented `truncateOutput` to cap all tool results (terminal output, file reads) at ~1500-2000 characters.
-- This prevents "Context Blowout" where a large command result would instantly exceed the 7B model's 4000-token limit and cause it to hallucinate.
-
-### 2. Autonomous Loop Protection
-- Added a `Duplicate Call Guard` that stringifies and hashes tool calls within a single reasoning turn.
-- If the model attempts the exact same failing action twice, Node.js intercepts it and returns a corrective error, forcing the model to change its approach rather than thrashing.
-
-### 3. Memory & Indexing Stability
-- Hardened the `buildIndex` function with strict OOM guards. It now ignores files larger than 100KB and skips binary/data formats (zip, png, exe, etc.).
-- This ensures that local full-text search indexing remains lightning-fast and never crashes the system on larger codebases.
-
-### 4. Interactive UX & macOS Control
-- Replaced static "Thinking..." text with a dynamic frame-based terminal spinner for a modern, responsive feel.
-- Introduced `control_macos`, a safe tool that executes restricted AppleScript commands (Dark Mode, Volume, active window) through a hardcoded whitelist, providing system power without the risk of raw script injection.
-
----
-**Status:** Release v8.0 Complete. Lucifer is now a resilient, high-performance, and truly professional macOS developer partner.
-
-# 🛠 Lucifer Evolution: Phase 14 (Professional Utility & v9.1 UNIX Alignment)
-
-In Phase 14, we fully embraced the UNIX philosophy: "One input ➔ One output ➔ Terminate." We expanded the Hybrid Utility Engine with high-efficiency features that make Lucifer as predictable as `git` or `gh`, while retaining the power of a private local model.
-
-## 📋 Evolution Summary
-The system was upgraded with **Terminal UX** (syntax highlighting), **Input Flexibility** (stdin support), and **Interaction Hooks** (y/n/explain for commands). This allows the user to use Lucifer as a surgical tool for data processing and shell automation without the overhead of an agentic loop.
-
-## 🛠 Professional Utility (v9.1)
-| Feature | Status in v8.0 | Status in v9.1 (Final) |
-| :--- | :--- | :--- |
-| **Output Style** | Raw Plain Text | **Markdown Syntax Highlighting** |
-| **Input Flow** | Args only | **Native Stdin/Pipe Support** |
-| **Command Flow**| Generation only | **Interactive `y/n/explain` Loop** |
-| **Data Output** | Narrative | **Structured `--json` Mode** |
-| **Aliasing** | Tools only | **First-class `--vision` and `--search`** |
-
-## 🚀 Phase 14: Key Implementations
-
-### 1. Terminal Syntax Highlighting
-- Implemented `highlightMarkdown` in `utils.ts` to automatically colorize code blocks, bold text, and inline code in terminal responses.
-- This dramatically improves the readability of Qwen's code suggestions without adding external UI dependencies.
-
-### 2. Secure Command Execution (`y/n/explain`)
-- Upgraded the `--command` (`-c`) flag with a deterministic feedback loop.
-- Lucifer now generates a command, shows it to the user, and offers an `explain` option (using the model to describe the command) before execution.
-
-### 3. Structured Data & Piping
-- Introduced the `--json` flag to force model responses into machine-readable formats.
-- Solidified stdin piping support, allowing Lucifer to be used in shell chains: `git diff | lucifer "summarize" > commit.txt`.
-
----
-**Status:** Release v9.1 Complete. Lucifer is now a high-speed, high-safety AI utility for the macOS terminal.
+**Status:** Lucifer v9.1 is the final realization of a private, local, and unbreakable macOS developer partner.

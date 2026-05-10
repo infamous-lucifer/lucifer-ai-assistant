@@ -1,126 +1,75 @@
-# 👹 Lucifer AI Assistant (Hybrid v9.1)
+# 👹 Lucifer AI: The Hybrid Utility Engine (v9.1)
 
-**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 9.1 introduces the **Professional Utility**, adding a suite of high-efficiency terminal features that align with the UNIX philosophy.
+**Lucifer** is a high-performance, privacy-first AI utility designed for the macOS terminal. Optimized for Apple Silicon (M5), it follows the **UNIX Philosophy**: "Write programs that do one thing and do it well. Write programs to work together. Write programs to handle text streams."
+
+Unlike traditional "agentic" AIs that suffer from context collapse and loops, Lucifer v9.1 functions as a deterministic **AI Swiss Army Knife**. It combines the private reasoning of a local 7B model (Qwen 2.5) with the advanced visual capabilities of Gemini 2.0.
+
+## 🎯 Core Philosophy
+- **Deterministic > Agentic:** No autonomous wandering. Lucifer acts only when commanded, ensuring 100% predictable behavior.
+- **Text Stream First:** Built to live in shell pipelines (`stdin` ➔ `stdout`).
+- **Private & Local:** All code reasoning happens on your Mac. Only screenshots are sent to Gemini API for vision tasks.
 
 ## 🚀 Key Features
-- **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
-- **Natural UNIX UX (v9.1):** Support for stdin piping, one-shot execution, and automatic terminal markdown highlighting.
-- **Interactive Command Suggest (`-c`):** Generates shell commands with a secure `y/n/explain` interactive loop.
-- **Structured JSON Mode:** Dedicated `--json` flag to force the model to output machine-readable data.
-- **Vision & Search Aliases:** Direct one-shot access to vision and web research via `--vision` and `--search` flags.
-- **Resilient Core:** Automatic context window hardening (output truncation) and duplicate call guards.
-- **Industrial Core:** Deterministic stability guards including pre-flight tool validation and a mandatory "Read-Before-Write" security lock.
-- **macOS Control:** Safe, safelisted system control via the `control_macos` tool.
-- **OOM-Safe Search:** Optimized local search indexing with file-size guards and binary filtering.
-- **Manifest-Driven:** Configuration (tools, security rules, paths) is decoupled into `lucifer-manifest.json` for easy updates.
-- **System Agency:** Lucifer can run terminal commands, manage files, and research updated syntax or docs online.
-- **Persistence:** Markdown session logs (`~/.lucifer-logs`) with automatic log rotation (keeps last 50).
-- **Vision Ready:** Built-in `!screen` command to analyze your workspace using Gemini 2.0 Vision.
-- **Surgical Precision:** Uses specialized tools to edit specific lines of code without overwriting entire files.
-- **Self-Evolution:** Enhanced `--evolve` mode for system-wide health checks, dependency audits, and manifest updates.
 
-...
-| **v4.8** | Stability & Polish | Log rotation, path sanitization, pinned dependencies, and tool call robustness. |
-| **v5.0** | Adaptive Core | Self-healing via search_web, captured stderr, manifest-driven configuration, and evolution audit. |
-| **v5.1** | Quick Search | Added `!search` shortcut for direct, non-agentic web research. |
-| **v5.2** | Resiliency Plus | Context-aware history pruning, synthetic history for shortcuts, and loop step warnings. |
-| **v5.3** | Local Optimized | Line-based editing, async shell execution, and deterministic evolution pipeline. |
-| **v5.4** | Precision Pipeline | Added `search_codebase` (grep), numbered `read_file`, and standardized `edit_file_lines`. |
-| **v6.0** | Professional Core | Interactive diffs, autonomous verification loop, and local search index. |
-| **v7.1** | Industrial Core | Pre-flight validator, Read-Before-Write lock, and guided `!fix` pipeline. |
-| **v8.0** | Resilient Core | Context hardening, loop protection, macOS control, and OOM-safe indexing. |
-| **v9.1** | Professional Utility | Stdin piping, one-shot commands, terminal syntax highlighting, and interactive command execution. |
+### 1. Hybrid Intelligence
+- **Local Brain:** Qwen 2.5 Coder 7B (via LM Studio) for infinite, zero-cost coding and text processing.
+- **Vision Brain:** Gemini 2.0 Flash for high-accuracy screen and UI analysis.
 
-- `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
-- `package.json`: Project configuration and dependencies.
+### 2. The UNIX Pipeline
+- **Native Piping:** Pipe any command output directly into Lucifer for analysis.
+  ```bash
+  cat logs.txt | lucifer "Find the root cause of this error"
+  ```
+- **Command Forge (`-c`):** Generate shell commands with a secure `y/n/explain` loop.
+- **Structured Data:** Use `--json` to force machine-readable outputs for your own scripts.
+
+### 3. High-Precision Tools
+- **Grep Search:** Native `grep` integration for finding exact coordinates in your codebase.
+- **Numbered Reading:** Files are read with `[Line X]` anchors, eliminating hallucination during edits.
+- **Surgical Edits:** Line-based replacements with **Interactive Diffs** so you can audit every change.
+
+### 4. Industrial Hardening
+- **Context Sentinel:** Physically prevents context window blowout by capping tool outputs and rejecting massive file reads.
+- **Security Lock:** Mandatory "Read-Before-Write" enforcement for all file modifications.
+- **OOM Guard:** High-speed codebase indexing that ignores binaries and massive files to prevent system crashes.
 
 ## 🏃 Getting Started
 
 ### Prerequisites
 1. **LM Studio:** Running a local server on port `1234`.
-2. **Model:** `qwen2.5-coder-7b-instruct-mlx` loaded in LM Studio.
-3. **API Key:** A Gemini API key (stored in `~/.lucifer-env`) for Vision tasks.
+2. **Model:** `qwen2.5-coder-7b-instruct-mlx` loaded.
+3. **Dependencies:** `brew install ddgr` (for web search).
 
-### Installation & Global Setup
+### Quick Install
 ```bash
-# Clone the repository
 git clone https://github.com/infamous-lucifer/lucifer-ai-assistant.git
 cd lucifer-ai-assistant
-
-# Install dependencies
-npm install
-
-# Rebuild and Register the global command
-npm run build
-npm link
+npm install && npm run build && npm link
 ```
 
-### Usage
-Run the assistant from anywhere:
-```bash
-lucifer
-```
+## ⌨️ Command Reference
 
-**Special Commands:**
-- `!search <query>`: Instantly search the web for technical info or documentation.
-- `!tldr <command>`: Get a simplified, community-driven cheat sheet for any terminal command.
-- `!report`: Generate a deep system diagnostics report instantly.
-- `!read <path>`: Quickly inspect the content of any project file.
-- `!test`: Execute the full project unit test suite.
-- `!status`: Run a real-time health check on the Lucifer environment.
-- `!lms`: Check the current status of the local LM Studio server.
-- `!screen [query]`: Take a screenshot and analyze it using Gemini Vision.
-- `!clip [query]`: Analyze current clipboard content.
-- `--evolve`: Run in maintenance mode to audit and improve Lucifer's source code.
-- `--rollback`: Instantly restore the last stable version.
-- `--status`: Run a system and environment health check.
+### One-Shot & Pipe (Recommended)
+| Command | Action |
+| :--- | :--- |
+| `lucifer "query"` | Get a quick answer and exit. |
+| `cat file \| lucifer` | Analyze piped data instantly. |
+| `lucifer -c "query"` | Suggest a command with `y/n/explain`. |
+| `lucifer --vision` | Capture and analyze screen. |
+| `lucifer --search` | Direct web research. |
 
-## 📈 Version History
-
-| Version | Milestone | Description |
-| :--- | :--- | :--- |
-| **v1.0** | Initial Release | Basic chat-only assistant with Gemini API. |
-| **v2.5** | Hybrid Leap | Integrated LM Studio & Qwen 2.5 Coder for local processing. |
-| **v3.5** | Precision Phase | Added surgical tools (`replace_in_file`) and range-based reading. |
-| **v4.4** | Daily Driver | Streaming output, onboarding wizard, session logging, and macOS integration. |
-| **v4.5** | Deep Insight | Advanced system diagnostics (`get_deep_system_report`) and API polish. |
-| **v4.6** | Security Hardened | Mandatory command approval, path traversal protection, and injection defense. |
-| **v4.7** | Type-Safe Architecture | Strict TypeScript interfaces, robust error handling, and surgical tool precision. |
-| **v4.8** | Stability & Polish | Log rotation, path sanitization, pinned dependencies, and tool call robustness. |
-| **v5.0** | Adaptive Core | Self-healing via search_web, captured stderr, manifest-driven configuration, and evolution audit. |
-| **v5.1** | Quick Search | Added `!search` shortcut for direct, non-agentic web research. |
-
-## 🛠 Development & Maintenance
-
-To ensure the global `lucifer` command reflects your latest source code changes, you must rebuild the production binary:
-
-### Build & Sync
-```bash
-# 1. Compile and bundle source code
-npm run build
-
-# 2. Ensure global link points to the production binary (one-time setup)
-# ln -sf $(pwd)/dist/index.js /Users/lucifer/bin/lucifer
-```
-
-### Testing Source Changes
-If you want to test changes without rebuilding the binary, run the source code directly using the development runtime:
-```bash
-npm start -- [args]
-# Example: npm start -- --status
-```
-
-## 🧪 Testing
-Run the comprehensive unit test suite to verify security guards and utility logic:
-```bash
-npm test
-```
+### Interactive Agent (`lucifer`)
+| Command | Action |
+| :--- | :--- |
+| `!fix <issue>` | Guided auto-repair pipeline. |
+| `!tldr <cmd>` | Get quick macOS cheat sheets. |
+| `!report` | Deep system diagnostics. |
+| `!test` | Run project unit tests. |
 
 ## 🛡 Security & Safety
-- **Mandatory Approval:** All terminal commands require explicit manual approval ('y/n') before execution.
-- **Path Guarding:** File operations are strictly restricted to the project root and allowed runtime directories.
-- **Injection Defense:** Clipboard content is treated as untrusted data to prevent prompt injection attacks.
-- **Privacy:** 100% of your code and terminal data stays local. Only screenshots are sent to Gemini API.
+- **100% Human-in-the-Loop:** No command runs and no file is changed without a manual `y` confirmation.
+- **Secure Execution:** Uses `execFileSync` to prevent shell injection attacks.
+- **Supply Chain Guard:** SHA256 checksum verification for all managed tool binaries.
 
 ---
-*Created with 🖤 for the M5 MacBook Air.*
+*Created with 🖤 for the M5 MacBook Air. Optimized for stability and privacy.*
