@@ -5,6 +5,7 @@
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
 - **System Agency:** Lucifer can run terminal commands, manage files, and generate deep system health reports.
+- **Persistence:** Markdown session logs (`~/.lucifer-logs`) with automatic log rotation (keeps last 50).
 - **Vision Ready:** Built-in `!screen` command to analyze your workspace using Gemini 2.0 Vision.
 - **Surgical Precision:** Uses specialized tools to edit specific lines of code without overwriting entire files.
 - **Self-Correction Loop:** Features an `--evolve` mode where the assistant audits its own code and proposes improvements for review.
@@ -60,6 +61,7 @@ lucifer
 | **v4.5** | Deep Insight | Advanced system diagnostics (`get_deep_system_report`) and API polish. |
 | **v4.6** | Security Hardened | Mandatory command approval, path traversal protection, and injection defense. |
 | **v4.7** | Type-Safe Architecture | Strict TypeScript interfaces, robust error handling, and surgical tool precision. |
+| **v4.8** | Stability & Polish | Log rotation, path sanitization, pinned dependencies, and tool call robustness. |
 
 ## 🛡 Security & Safety
 - **Mandatory Approval:** All terminal commands require explicit manual approval ('y/n') before execution.

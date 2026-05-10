@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -118,8 +118,8 @@ if (args.includes('--status')) { await runStatusCheck(); process.exit(0); }
 if (args.includes('--setup')) { await runSetupWizard(); process.exit(0); }
 if (args.includes('--install-daemon')) { await installLaunchAgent(); process.exit(0); }
 if (args.includes('--last')) {
-    const logs = fs.existsSync(LOGS_DIR) ? fs.readdirSync(LOGS_DIR).sort().reverse() : [];
-    if (logs.length > 0) execSync(`open ${path.join(LOGS_DIR, logs[0]!)}`);
+    const logs = fs.existsSync(LOGS_DIR) ? fs.readdirSync(LOGS_DIR).filter(f => f.endsWith('.md')).sort().reverse() : [];
+    if (logs.length > 0) execFileSync('open', [path.join(LOGS_DIR, logs[0]!)]);
     else console.log(chalk.yellow('No logs found.'));
     process.exit(0);
 }
@@ -339,6 +339,13 @@ async function main() {
     const isEvolving = args.includes('--evolve');
     const SESSION_ID = new Date().toISOString().replace(/[:.]/g, '-');
     if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR);
+    
+    // N-4: Log Rotation (keep last 50)
+    const allLogs = fs.readdirSync(LOGS_DIR).filter(f => f.endsWith('.md')).sort();
+    if (allLogs.length > 50) {
+        allLogs.slice(0, allLogs.length - 50).forEach(f => fs.unlinkSync(path.join(LOGS_DIR, f)));
+    }
+
     const LOG_FILE = path.join(LOGS_DIR, `session-${SESSION_ID}.md`);
     fs.writeFileSync(LOG_FILE, `# Lucifer Session — ${new Date().toLocaleString()}\n\n**Mode:** ${isEvolving ? 'Evolution' : 'Normal'}\n**Project:** ${PROJECT_ROOT}\n\n---\n\n`);
 
@@ -347,7 +354,8 @@ async function main() {
         gitContext = `\n- Git repo: ${execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim()}, branch: ${execSync('git branch --show-current', { encoding: 'utf-8' }).trim()}`;
     } catch {}
 
-    console.clear();
+    // N-3: Softer separator instead of clear()
+    console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
     console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.5 (DEEP INSIGHT) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: ${RUNTIMES_PATH}`));
@@ -405,6 +413,7 @@ async function main() {
                     }
                     if (delta?.tool_calls) {
                         for (const toolCallDelta of delta.tool_calls) {
+                            if (toolCallDelta.index === undefined) continue;
                             if (!toolCalls[toolCallDelta.index]) toolCalls[toolCallDelta.index] = { id: toolCallDelta.id, type: "function", function: { name: "", arguments: "" } };
                             if (toolCallDelta.id) toolCalls[toolCallDelta.index].id = toolCallDelta.id;
                             if (toolCallDelta.function?.name) toolCalls[toolCallDelta.index].function.name += toolCallDelta.function.name;
