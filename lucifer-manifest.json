@@ -1,16 +1,18 @@
 {
-    "version": "6.1",
+    "version": "7.1",
     "dependencies": [
         {
             "name": "ddgr",
             "binary": "bin/ddgr",
             "source": "https://raw.githubusercontent.com/jarun/ddgr/master/ddgr",
+            "sha256": "b26a6d9dbb7260ddd555e8f13e216cd5c3843301ef671be5478caa975060847a",
             "description": "DuckDuckGo CLI for web search"
         },
         {
             "name": "tldr",
             "binary": "bin/tldr",
             "source": "https://raw.githubusercontent.com/raylee/tldr/master/tldr",
+            "sha256": "fe1ce2fe8c9c88f0f991b19179ce5e66c013fa299f33cbc974c566d0033e52a8",
             "description": "Simplified community-driven man pages (Cheat sheets)"
         }
     ],
@@ -144,12 +146,12 @@
         {
             "type": "function",
             "function": {
-                "name": "semantic_search",
-                "description": "Searches for code by meaning and context rather than exact keywords. Returns ranked file paths.",
+                "name": "keyword_search",
+                "description": "Searches for local project code by keywords using a full-text index. Use for finding known terms or variables.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "query": { "type": "string", "description": "The concept or functionality to search for (e.g., 'user authentication')" }
+                        "query": { "type": "string", "description": "The keyword or term to search for (e.g., 'API_KEY')" }
                     },
                     "required": ["query"]
                 }

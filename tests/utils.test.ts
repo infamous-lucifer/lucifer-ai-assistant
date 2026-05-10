@@ -11,7 +11,7 @@ import {
     pruneHistory,
     getLogsToDelete,
     deps
-} from '../lib/utils.js';
+} from '../utils.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -364,6 +364,10 @@ describe('tools schema', () => {
             requiredParams: ['command'],
         },
         {
+            name: 'list_files',
+            requiredParams: [],
+        },
+        {
             name: 'search_codebase',
             requiredParams: ['search_term', 'path'],
         },
@@ -388,6 +392,10 @@ describe('tools schema', () => {
             requiredParams: ['query'],
         },
         {
+            name: 'keyword_search',
+            requiredParams: ['query'],
+        },
+        {
             name: 'get_command_help',
             requiredParams: ['command'],
         },
@@ -404,8 +412,8 @@ describe('tools schema', () => {
         expect(unique.size).toBe(requiredParams.length);
     });
 
-    test('there are exactly 8 tools defined', () => {
-        expect(expectedTools).toHaveLength(8);
+    test('there are exactly 10 tools defined', () => {
+        expect(expectedTools).toHaveLength(10);
     });
 
     test('all tool names are unique', () => {

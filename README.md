@@ -1,14 +1,15 @@
-# 👹 Lucifer AI Assistant (Hybrid v6.0)
+# 👹 Lucifer AI Assistant (Hybrid v7.1)
 
-**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 6.0 introduces the **Professional Core**, featuring interactive safety diffs, autonomous verification, and conceptual codebase search.
+**Lucifer** is a professional, high-performance agentic AI assistant designed specifically for macOS. Version 7.1 introduces the **Industrial Core**, featuring deterministic stability guards, high-precision guided pipelines, and security-hardened tool execution.
 
 ## 🚀 Key Features
 - **Hybrid Intelligence:** Powered by **Qwen 2.5 Coder 7B (Local MLX)** for unlimited coding tasks and **Gemini 2.0 Flash** for vision tasks.
+- **Industrial Core (v7.1):** Hardened stability via pre-flight tool validation and a mandatory "Read-Before-Write" security lock.
+- **Guided Pipelines:** Dedicated `!fix` command for autonomous multi-step problem solving with zero agentic drift.
 - **Visual Safety:** Interactive Git-style diffs for all file edits, ensuring you audit every change before it hits the disk.
 - **Autonomous Verification:** Built-in TDD loop that automatically runs tests/syntax checks after edits to fix its own errors.
-- **Conceptual Search:** Local semantic search via `minisearch` allowing you to find code by meaning rather than just keywords.
-- **Local Optimized Core:** Refactored for reliability on M5 Air hardware using line-based editing and non-blocking async commands.
-- **Adaptive Core (v5.0):** Real-time autonomous self-healing via `search_web` and comprehensive error analysis.
+- **Local Search Engine:** High-speed full-text indexing via `minisearch` and native `grep` integration for high-precision codebase exploration.
+- **Adaptive Core:** Real-time autonomous self-healing via `search_web` and comprehensive error analysis.
 - **Manifest-Driven:** Configuration (tools, security rules, paths) is decoupled into `lucifer-manifest.json` for easy updates.
 - **System Agency:** Lucifer can run terminal commands, manage files, and research updated syntax or docs online.
 - **Persistence:** Markdown session logs (`~/.lucifer-logs`) with automatic log rotation (keeps last 50).
@@ -23,7 +24,8 @@
 | **v5.2** | Resiliency Plus | Context-aware history pruning, synthetic history for shortcuts, and loop step warnings. |
 | **v5.3** | Local Optimized | Line-based editing, async shell execution, and deterministic evolution pipeline. |
 | **v5.4** | Precision Pipeline | Added `search_codebase` (grep), numbered `read_file`, and standardized `edit_file_lines`. |
-| **v6.0** | Professional Core | Interactive diffs, autonomous verification loop, and local semantic search index. |
+| **v6.0** | Professional Core | Interactive diffs, autonomous verification loop, and local search index. |
+| **v7.1** | Industrial Core | Pre-flight validator, Read-Before-Write lock, and guided `!fix` pipeline. |
 
 - `docs/EVOLUTION.md`: Detailed history of the architectural leaps from v1.0 to v4.5.
 - `package.json`: Project configuration and dependencies.

@@ -1,0 +1,20 @@
+import fs from 'node:fs';
+export declare const deps: {
+    fs: {
+        existsSync: typeof fs.existsSync;
+        readFileSync: typeof fs.readFileSync;
+    };
+};
+export declare function isPathAllowed(filePath: string, allowedRoots: string[]): boolean;
+export declare function resolveFilePath(filePath: string, allowedRoots: string[]): string;
+export declare function isDangerousCommand(command: string, dangerPatterns: (string | RegExp)[]): boolean;
+export declare function applyEditFileRange(fileText: string, startLine: number, endLine: number, newCode: string): {
+    ok: true;
+    content: string;
+} | {
+    ok: false;
+    error: string;
+};
+export declare function showVisualDiff(oldText: string, newText: string, fileName: string): void;
+export declare function pruneHistory(history: any[], maxLength: number): any[];
+export declare function getLogsToDelete(logs: string[], maxLogs: number): string[];

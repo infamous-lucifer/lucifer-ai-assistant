@@ -4,3 +4,4 @@ screen.png
 node_modules/
 *.log
 .DS_Store
+.lucifer-index.json
