@@ -85,3 +85,41 @@ The system transitioned from a "soft blocklist" security model to an **Aggressiv
 
 ---
 **Status:** Release v4.6 Complete. Lucifer is now a security-hardened, production-ready agent.
+
+# 🏗️ Lucifer Evolution: Phase 5 (Architectural Refinement & v4.7 Production Polish)
+
+In Phase 5, we moved beyond baseline security into high-level engineering standards. We addressed deep-seated architectural issues related to type safety, error handling, and tool precision.
+
+## 📋 Evolution Summary
+The system was refactored to utilize **Strict TypeScript Interfaces** and **Robust Runtime Validation**. This phase ensures that Lucifer is not only secure but also reliable and predictable in its tool usage, preventing silent failures and "zombie" temporary files.
+
+## 🛠 Architectural Refinements (v4.7)
+| Feature | Status in v4.6 | Status in v4.7 (Final) |
+| :--- | :--- | :--- |
+| **Type Safety** | `any` casts everywhere | **Strict Interfaces & SDK-Native Types** |
+| **Tool Precision** | Loose `.replace()` | **Surgical Uniqueness Checks** |
+| **Resource Safety**| Possible temp file leaks | **Try/Finally Cleanup with Unique IDs** |
+| **Context Control** | Late history truncation | **Pre-turn Context Pruning** |
+| **Fix Reporting** | Missing issue context | **Comprehensive Fix Proposal Generation** |
+
+## 🚀 Phase 5: Key Implementations
+
+### 1. SDK-Native Type Safety
+- Defined the `tools` array using OpenAI's `ChatCompletionTool[]` type, ensuring schema compliance at build time.
+- Implemented strict interfaces (`RunCommandArgs`, `ReadFileArgs`, etc.) for all tool payloads.
+- Added runtime validation to `executeTool` to safely handle malformed JSON from the model.
+
+### 2. Surgical Tool Precision
+- Upgraded `replace_in_file` to verify that the `old_string` occurs **exactly once**. This prevents accidental "multi-point" edits and ensures surgical accuracy.
+- Updated tool descriptions to explicitly instruct the model on how to provide unique strings.
+
+### 3. Resource & Context Management
+- Fixed a potential temp file leak in `seeScreen` by wrapping the screenshot logic in a `try/finally` block.
+- Implemented unique timestamped filenames for screenshots to support concurrent/sequential vision calls without clobbering.
+- Optimized history truncation to occur **before** the model turn starts, ensuring the context window is always within safe limits.
+
+### 4. Observability & Propose Fix
+- Enhanced `propose_fix` to utilize the `issue` parameter, generating a much more useful `REVIEW_REQUEST.md` that includes the bug description alongside the suggested code.
+
+---
+**Status:** Release v4.7 Complete. Lucifer is now a professional-grade, type-safe, and highly reliable AI assistant.

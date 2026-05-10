@@ -59,6 +59,7 @@ lucifer
 | **v4.4** | Daily Driver | Streaming output, onboarding wizard, session logging, and macOS integration. |
 | **v4.5** | Deep Insight | Advanced system diagnostics (`get_deep_system_report`) and API polish. |
 | **v4.6** | Security Hardened | Mandatory command approval, path traversal protection, and injection defense. |
+| **v4.7** | Type-Safe Architecture | Strict TypeScript interfaces, robust error handling, and surgical tool precision. |
 
 ## 🛡 Security & Safety
 - **Mandatory Approval:** All terminal commands require explicit manual approval ('y/n') before execution.

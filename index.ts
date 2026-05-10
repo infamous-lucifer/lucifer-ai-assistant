@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
+import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { execSync } from 'node:child_process';
@@ -151,25 +152,95 @@ async function initializeApp() {
 
 async function seeScreen(query: string): Promise<string> {
     if (!ai) return "Error: Gemini AI not initialized.";
+    const screenshotPath = path.join(os.tmpdir(), `lucifer-screen-${Date.now()}.png`);
     try {
-        const screenshotPath = path.join(os.tmpdir(), `lucifer-screen.png`);
         execSync(`screencapture -x ${screenshotPath}`);
         const imageData = fs.readFileSync(screenshotPath).toString('base64');
-        fs.unlinkSync(screenshotPath);
         const result = await ai.models.generateContent({
             model: "gemini-2.0-flash",
             contents: [{ role: "user", parts: [{ text: query || "What is on my screen?" }, { inlineData: { mimeType: "image/png", data: imageData } }] }]
         });
         return result.text || "No analysis generated.";
     } catch (e: any) { return `Vision Error: ${e.message}`; }
+    finally {
+        if (fs.existsSync(screenshotPath)) fs.unlinkSync(screenshotPath);
+    }
 }
 
-const tools = [
-    { type: "function", function: { name: "run_command", description: "Execute shell command.", parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } } },
-    { type: "function", function: { name: "read_file", description: "Read file.", parameters: { type: "object", properties: { path: { type: "string" }, start_line: { type: "number" }, end_line: { type: "number" } }, required: ["path"] } } },
-    { type: "function", function: { name: "replace_in_file", description: "Edit text.", parameters: { type: "object", properties: { path: { type: "string" }, old_string: { type: "string" }, new_string: { type: "string" } }, required: ["path", "old_string", "new_string"] } } },
-    { type: "function", function: { name: "propose_fix", description: "Review Request.", parameters: { type: "object", properties: { issue: { type: "string" }, file_path: { type: "string" }, suggested_fix: { type: "string" } }, required: ["issue", "file_path", "suggested_fix"] } } },
-    { type: "function", function: { name: "get_deep_system_report", description: "Comprehensive macOS health report: CPU, RAM, Battery, and Network stats.", parameters: { type: "object", properties: {} } } }
+interface RunCommandArgs { command: string; }
+interface ReadFileArgs { path: string; start_line?: number; end_line?: number; }
+interface ReplaceInFileArgs { path: string; old_string: string; new_string: string; }
+interface ProposeFixArgs { issue: string; file_path: string; suggested_fix: string; }
+
+const tools: ChatCompletionTool[] = [
+    {
+        type: "function",
+        function: {
+            name: "run_command",
+            description: "Execute a shell command on macOS. Requires user approval.",
+            parameters: {
+                type: "object",
+                properties: { command: { type: "string" } },
+                required: ["command"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "read_file",
+            description: "Read a file with optional line range.",
+            parameters: {
+                type: "object",
+                properties: {
+                    path: { type: "string" },
+                    start_line: { type: "number" },
+                    end_line: { type: "number" }
+                },
+                required: ["path"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "replace_in_file",
+            description: "Surgically edit text. Replaces exactly ONE occurrence. Provide unique old_string.",
+            parameters: {
+                type: "object",
+                properties: {
+                    path: { type: "string" },
+                    old_string: { type: "string" },
+                    new_string: { type: "string" }
+                },
+                required: ["path", "old_string", "new_string"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "propose_fix",
+            description: "Propose a code fix for a specific issue.",
+            parameters: {
+                type: "object",
+                properties: {
+                    issue: { type: "string" },
+                    file_path: { type: "string" },
+                    suggested_fix: { type: "string" }
+                },
+                required: ["issue", "file_path", "suggested_fix"]
+            }
+        }
+    },
+    {
+        type: "function",
+        function: {
+            name: "get_deep_system_report",
+            description: "Comprehensive macOS health report: CPU, RAM, Battery, and Network stats.",
+            parameters: { type: "object", properties: {} }
+        }
+    }
 ];
 
 function resolveFilePath(filePath: string): string {
@@ -182,9 +253,12 @@ function resolveFilePath(filePath: string): string {
 }
 
 let toolsUsed: string[] = [];
-async function executeTool(name: string, args: any): Promise<string> {
+async function executeTool(name: string, rawArgs: any): Promise<string> {
     toolsUsed.push(name);
     
+    // Runtime validation for args
+    if (typeof rawArgs !== 'object' || rawArgs === null) return "Error: Invalid tool arguments.";
+
     // C-1: Enhanced Danger Patterns + Mandatory Approval
     const DANGER_PATTERNS = [
         /rm\s+-rf?\s+[~\/]/,
@@ -199,7 +273,8 @@ async function executeTool(name: string, args: any): Promise<string> {
 
     try {
         switch (name) {
-            case "run_command":
+            case "run_command": {
+                const args = rawArgs as RunCommandArgs;
                 if (DANGER_PATTERNS.some(p => p.test(args.command))) {
                     return "Error: Command matches known danger patterns and is blocked.";
                 }
@@ -209,7 +284,9 @@ async function executeTool(name: string, args: any): Promise<string> {
                 
                 console.log(chalk.yellow(`  [Action] Executing...`));
                 return execSync(args.command, { encoding: 'utf-8', timeout: 15000 });
-            case "read_file":
+            }
+            case "read_file": {
+                const args = rawArgs as ReadFileArgs;
                 const rPath = resolveFilePath(args.path);
                 if (!isPathAllowed(rPath)) return `Error: Access to path '${args.path}' is restricted.`;
                 let content = fs.readFileSync(rPath, 'utf-8');
@@ -218,19 +295,32 @@ async function executeTool(name: string, args: any): Promise<string> {
                     content = lines.slice((args.start_line || 1) - 1, args.end_line || lines.length).join('\n');
                 }
                 return content;
-            case "replace_in_file":
+            }
+            case "replace_in_file": {
+                const args = rawArgs as ReplaceInFileArgs;
                 const edPath = resolveFilePath(args.path);
                 if (!isPathAllowed(edPath)) return `Error: Access to path '${args.path}' is restricted.`;
                 if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
                 let fileText = fs.readFileSync(edPath, 'utf-8');
-                if (!fileText.includes(args.old_string)) return "Error: Text not found.";
+                
+                // M-3: Check for uniqueness
+                const occurrences = fileText.split(args.old_string).length - 1;
+                if (occurrences === 0) return "Error: Text not found.";
+                if (occurrences > 1) return `Error: '${args.old_string}' found ${occurrences} times. Provide a more specific string to ensure a surgical edit.`;
+                
                 fs.writeFileSync(edPath, fileText.replace(args.old_string, args.new_string));
                 return "Success: Applied.";
-            case "propose_fix":
+            }
+            case "propose_fix": {
+                const args = rawArgs as ProposeFixArgs;
                 const reviewPath = path.join(PROJECT_ROOT, "REVIEW_REQUEST.md");
                 if (!isPathAllowed(reviewPath)) return "Error: Cannot write review request outside allowed root.";
-                fs.writeFileSync(reviewPath, `# 🛠 Fix Proposal\n**File:** ${args.file_path}\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``);
+                
+                // M-6: Include the issue description
+                const content = `# 🛠 Fix Proposal\n\n**File:** ${args.file_path}\n\n## 🐛 Issue\n${args.issue}\n\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``;
+                fs.writeFileSync(reviewPath, content);
                 return `Review request written to REVIEW_REQUEST.md. Open it manually and submit to Gemini CLI with: gemini -f REVIEW_REQUEST.md`;
+            }
             case "get_deep_system_report":
                 console.log(chalk.yellow(`  [Action] Compiling deep system report...`));
                 const uptime = execSync('uptime', { encoding: 'utf-8' }).trim();
@@ -275,6 +365,7 @@ async function main() {
     let history: any[] = [{ role: "system", content: basePrompt + (isEvolving ? "\nEVOLUTION MODE: Audit yourself (index.ts)." : "") }];
 
     while (true) {
+        if (history.length > 36) history = [history[0], ...history.slice(-35)];
         const query = await rl.question(chalk.green(`lucifer@m5 > `));
         if (['exit', 'quit'].includes(query.toLowerCase())) break;
         if (!query.trim()) continue;
@@ -338,8 +429,6 @@ async function main() {
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** ${query}\n\n**Lucifer:** ${finalResponse || 'Task complete.'}\n\n---\n\n`);
             if (loopCount > 1) { try { execSync(`osascript -e 'display notification "Task complete" with title "Lucifer"'`); } catch {} }
         } catch (err: any) { console.log(chalk.red(`\nError: ${err.message}\n`));
-        } finally {
-            if (history.length > 40) history = [history[0], ...history.slice(-39)];
         }
     }
     if (toolsUsed.length > 0) fs.appendFileSync(LOG_FILE, `\n## Session Summary\nTools used: ${[...new Set(toolsUsed)].join(', ')}\n`);
