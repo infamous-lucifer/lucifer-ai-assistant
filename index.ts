@@ -18,6 +18,7 @@ const PROJECT_ROOT: string = process.env.LUCIFER_HOME || __dirname;
 const CONFIG_FILE = path.join(os.homedir(), '.lucifer-env');
 const BACKUP_FILE = path.join(PROJECT_ROOT, "index.ts.bak");
 const RUNTIMES_PATH = path.join(os.homedir(), "runtimes");
+const LOGS_DIR = path.join(os.homedir(), '.lucifer-logs');
 
 dotenv.config({ path: CONFIG_FILE });
 
@@ -30,20 +31,92 @@ const rl = readline.createInterface({ input, output });
 // --- CLI Argument Handling ---
 const args = process.argv.slice(2);
 
-// ISSUE 2 — --rollback implementation
+function printHelp() {
+    console.log(chalk.cyan(`
+=== LUCIFER v4.4 — Quick Reference ===
+
+STARTUP
+  lucifer              Start assistant (normal mode)
+  lucifer --evolve     Start in code audit mode
+  lucifer --rollback   Restore last stable version
+  lucifer --status     Check system health
+  lucifer --setup      First-time setup wizard
+  lucifer --install-daemon  Install auto-start background service
+  lucifer --last       Open most recent session log
+  lucifer --help       Show this message
+
+IN-SESSION COMMANDS
+  !screen [query]      Analyze your screen with Gemini Vision
+  !clip [query]        Analyze clipboard content
+  exit / quit          End session
+
+TOOLS (model can use these autonomously)
+  run_command          Execute shell commands
+  read_file            Read files (supports line ranges)
+  replace_in_file      Surgical text edits with auto-backup
+  propose_fix          Write a review request to REVIEW_REQUEST.md
+  get_system_info      Battery + uptime health report
+`));
+}
+
+async function runStatusCheck() {
+    console.log(chalk.cyan('\n=== LUCIFER STATUS ===\n'));
+    const keyExists = fs.existsSync(CONFIG_FILE) && fs.readFileSync(CONFIG_FILE, 'utf-8').includes('API_KEY=');
+    console.log(keyExists ? chalk.green('✔ API Key found') : chalk.red('✘ API Key missing — run: lucifer --setup'));
+    try {
+        const status = execSync(`${path.join(os.homedir(), '.lmstudio/bin/lms')} status`, { encoding: 'utf-8' });
+        console.log(!status.includes('Server: OFF') ? chalk.green('✔ LM Studio server running') : chalk.yellow('⚠ LM Studio server OFF'));
+    } catch { console.log(chalk.red('✘ LM Studio not found')); }
+    console.log(fs.existsSync(BACKUP_FILE) ? chalk.green('✔ Rollback backup available') : chalk.gray('– No backup yet'));
+    console.log(fs.existsSync(RUNTIMES_PATH) ? chalk.green(`✔ Runtimes folder found`) : chalk.yellow(`⚠ Runtimes folder missing`));
+    console.log('');
+}
+
+async function runSetupWizard() {
+    console.log(chalk.cyan('\n=== LUCIFER SETUP WIZARD ===\n'));
+    const key = await rl.question('Paste your Gemini API key (leave blank to skip): ');
+    if (key.trim()) fs.writeFileSync(CONFIG_FILE, `API_KEY=${key.trim()}\n`);
+    const lmsOk = await rl.question('Is LM Studio installed? (y/n): ');
+    if (lmsOk.toLowerCase() !== 'y') console.log(chalk.yellow('⚠ Please install it from lmstudio.ai\n'));
+    console.log(chalk.yellow('Step 3: Run "npm link" to register the global command.\n'));
+    console.log(chalk.cyan('Setup complete! Run: lucifer\n'));
+}
+
+async function installLaunchAgent() {
+    const plistPath = path.join(os.homedir(), 'Library/LaunchAgents/com.lucifer.lmstudio.plist');
+    const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
+    const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>Label</key><string>com.lucifer.lmstudio</string><key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string><string>${lmsPath} daemon up</string></array><key>RunAtLoad</key><true/><key>KeepAlive</key><false/></dict></plist>`;
+    try {
+        if (!fs.existsSync(path.dirname(plistPath))) fs.mkdirSync(path.dirname(plistPath), { recursive: true });
+        fs.writeFileSync(plistPath, plistContent);
+        execSync(`launchctl load ${plistPath}`);
+        console.log(chalk.green(`✔ Installed and loaded LaunchAgent at: ${plistPath}`));
+    } catch (e: any) { console.log(chalk.red(`✘ Failed to install daemon: ${e.message}`)); }
+}
+
 if (args.includes('--rollback')) {
     if (fs.existsSync(BACKUP_FILE)) {
         fs.copyFileSync(BACKUP_FILE, path.join(PROJECT_ROOT, 'index.ts'));
-        console.log(chalk.green('✔ Rolled back to last stable version.'));
-    } else {
-        console.log(chalk.red('✘ No backup found.'));
-    }
+        console.log(chalk.green('✔ Rollback successful.'));
+    } else { console.log(chalk.red('✘ No backup found.')); }
+    process.exit(0);
+}
+if (args.includes('--help') || args.includes('-h')) { printHelp(); process.exit(0); }
+if (args.includes('--status')) { await runStatusCheck(); process.exit(0); }
+if (args.includes('--setup')) { await runSetupWizard(); process.exit(0); }
+if (args.includes('--install-daemon')) { await installLaunchAgent(); process.exit(0); }
+if (args.includes('--last')) {
+    const logs = fs.existsSync(LOGS_DIR) ? fs.readdirSync(LOGS_DIR).sort().reverse() : [];
+    if (logs.length > 0) execSync(`open ${path.join(LOGS_DIR, logs[0]!)}`);
+    else console.log(chalk.yellow('No logs found.'));
     process.exit(0);
 }
 
 // --- Graceful Shutdown ---
 process.on('SIGINT', () => {
-    console.log(chalk.yellow("\n[Signal] Interrupt received. Shutting down..."));
+    console.log(chalk.yellow("\n[Signal] Shutting down..."));
     rl.close();
     process.exit(0);
 });
@@ -54,9 +127,7 @@ async function initializeApp() {
         apiKey = await rl.question(chalk.green('Enter your Gemini API Key: '));
         if (apiKey) fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
     }
-    // Correct v1.x SDK initialization
     ai = new GoogleGenAI({ apiKey: apiKey!.trim() });
-
     try {
         const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
         const status = execSync(`${lmsPath} status`, { encoding: 'utf-8' });
@@ -66,108 +137,29 @@ async function initializeApp() {
             console.log(chalk.green(" Done."));
         }
     } catch (e) {}
-    
-    localAI = new OpenAI({
-        baseURL: "http://localhost:1234/v1", 
-        apiKey: "lm-studio",
-        timeout: 60000,
-    });
+    localAI = new OpenAI({ baseURL: "http://localhost:1234/v1", apiKey: "lm-studio", timeout: 60000 });
 }
 
-// ISSUE 1 — !screen vision logic (Fixed for v1.x SDK)
 async function seeScreen(query: string): Promise<string> {
     try {
         const screenshotPath = path.join(os.tmpdir(), `lucifer-screen.png`);
         execSync(`screencapture -x ${screenshotPath}`);
         const imageData = fs.readFileSync(screenshotPath).toString('base64');
         fs.unlinkSync(screenshotPath);
-
         const result = await ai.models.generateContent({
             model: "gemini-2.0-flash",
-            contents: [
-                { role: "user", parts: [
-                    { text: query || "What is on my screen?" },
-                    { inlineData: { mimeType: "image/png", data: imageData } }
-                ]}
-            ]
+            contents: [{ role: "user", parts: [{ text: query || "What is on my screen?" }, { inlineData: { mimeType: "image/png", data: imageData } }] }]
         });
-        return result.text || "No vision analysis generated.";
-    } catch (e: any) {
-        return `Vision Error: ${e.message}`;
-    }
+        return result.text || "No analysis generated.";
+    } catch (e: any) { return `Vision Error: ${e.message}`; }
 }
 
-// --- Tool Definitions ---
 const tools = [
-    {
-        type: "function",
-        function: {
-            name: "run_command",
-            description: "Execute a shell command. Use for tests, scripts, or system tasks.",
-            parameters: {
-                type: "object",
-                properties: { command: { type: "string" } },
-                required: ["command"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "read_file",
-            description: "Read a file from disk.",
-            parameters: {
-                type: "object",
-                properties: {
-                    path: { type: "string" },
-                    start_line: { type: "number" },
-                    end_line: { type: "number" }
-                },
-                required: ["path"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "replace_in_file",
-            description: "Surgical text replacement. Creates backup if editing core logic.",
-            parameters: {
-                type: "object",
-                properties: {
-                    path: { type: "string" },
-                    old_string: { type: "string" },
-                    new_string: { type: "string" }
-                },
-                required: ["path", "old_string", "new_string"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "propose_fix",
-            description: "Create a Review Request for the Senior Agent.",
-            parameters: {
-                type: "object",
-                properties: {
-                    issue: { type: "string" },
-                    file_path: { type: "string" },
-                    old_code: { type: "string" },
-                    suggested_fix: { type: "string" }
-                },
-                required: ["issue", "file_path", "suggested_fix"]
-            }
-        }
-    },
-    {
-        type: "function",
-        function: {
-            name: "get_system_info",
-            description: "Get macOS system health including uptime and battery status.",
-            parameters: { type: "object", properties: {} }
-        }
-    }
+    { type: "function", function: { name: "run_command", description: "Execute shell command.", parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] } } },
+    { type: "function", function: { name: "read_file", description: "Read file.", parameters: { type: "object", properties: { path: { type: "string" }, start_line: { type: "number" }, end_line: { type: "number" } }, required: ["path"] } } },
+    { type: "function", function: { name: "replace_in_file", description: "Edit text.", parameters: { type: "object", properties: { path: { type: "string" }, old_string: { type: "string" }, new_string: { type: "string" } }, required: ["path", "old_string", "new_string"] } } },
+    { type: "function", function: { name: "propose_fix", description: "Review Request.", parameters: { type: "object", properties: { issue: { type: "string" }, file_path: { type: "string" }, suggested_fix: { type: "string" } }, required: ["issue", "file_path", "suggested_fix"] } } },
+    { type: "function", function: { name: "get_system_info", description: "Battery/Uptime report.", parameters: { type: "object", properties: {} } } }
 ];
 
 function resolveFilePath(filePath: string): string {
@@ -176,23 +168,19 @@ function resolveFilePath(filePath: string): string {
     const rootPath = path.join(PROJECT_ROOT, filePath);
     if (fs.existsSync(rootPath)) return rootPath;
     const runtimePath = path.join(RUNTIMES_PATH, filePath);
-    if (fs.existsSync(runtimePath)) return runtimePath;
-    return filePath;
+    return fs.existsSync(runtimePath) ? runtimePath : filePath;
 }
 
+let toolsUsed: string[] = [];
 function executeTool(name: string, args: any): string {
-    // ISSUE 3 — Guard Rails
+    toolsUsed.push(name);
     const BLOCKED = ['rm -rf /', 'sudo', 'mkfs', ':(){:|:&};:'];
-    if (name === "run_command" && BLOCKED.some(b => args.command.includes(b))) {
-        return "Error: Blocked command. Lucifer does not run destructive or privileged commands.";
-    }
-
+    if (name === "run_command" && BLOCKED.some(b => args.command.includes(b))) return "Error: Blocked command.";
     try {
         switch (name) {
             case "run_command":
-                console.log(chalk.yellow(`  [Action] Executing: ${args.command}`));
+                console.log(chalk.yellow(`  [Action] ${args.command}`));
                 return execSync(args.command, { encoding: 'utf-8', timeout: 15000 });
-
             case "read_file":
                 const rPath = resolveFilePath(args.path);
                 let content = fs.readFileSync(rPath, 'utf-8');
@@ -201,7 +189,6 @@ function executeTool(name: string, args: any): string {
                     content = lines.slice((args.start_line || 1) - 1, args.end_line || lines.length).join('\n');
                 }
                 return content;
-
             case "replace_in_file":
                 const edPath = resolveFilePath(args.path);
                 if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
@@ -209,18 +196,14 @@ function executeTool(name: string, args: any): string {
                 if (!fileText.includes(args.old_string)) return "Error: Text not found.";
                 fs.writeFileSync(edPath, fileText.replace(args.old_string, args.new_string));
                 return "Success: Applied.";
-
             case "propose_fix":
                 const reviewPath = path.join(PROJECT_ROOT, "REVIEW_REQUEST.md");
-                const doc = `# 🛠 Fix Proposal\n**File:** ${args.file_path}\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``;
-                fs.writeFileSync(reviewPath, doc);
+                fs.writeFileSync(reviewPath, `# 🛠 Fix Proposal\n**File:** ${args.file_path}\n## 📝 Proposed Change\n\`\`\`ts\n${args.suggested_fix}\n\`\`\``);
                 return `Review request written to REVIEW_REQUEST.md. Open it manually and submit to Gemini CLI with: gemini -f REVIEW_REQUEST.md`;
-
             case "get_system_info":
                 const uptime = execSync('uptime', { encoding: 'utf-8' }).trim();
                 const battery = execSync('pmset -g batt', { encoding: 'utf-8' }).trim();
                 return `📊 **System Health Report**\n\n**Uptime:** ${uptime}\n**Battery:**\n\`\`\`\n${battery}\n\`\`\``;
-
             default: return "Unknown tool";
         }
     } catch (error: any) { return `Error: ${error.message}`; }
@@ -229,31 +212,33 @@ function executeTool(name: string, args: any): string {
 async function main() {
     await initializeApp(); 
     const isEvolving = args.includes('--evolve');
-    
+    const SESSION_ID = new Date().toISOString().replace(/[:.]/g, '-');
+    if (!fs.existsSync(LOGS_DIR)) fs.mkdirSync(LOGS_DIR);
+    const LOG_FILE = path.join(LOGS_DIR, `session-${SESSION_ID}.md`);
+    fs.writeFileSync(LOG_FILE, `# Lucifer Session — ${new Date().toLocaleString()}\n\n**Mode:** ${isEvolving ? 'Evolution' : 'Normal'}\n**Project:** ${PROJECT_ROOT}\n\n---\n\n`);
+
+    let gitContext = '';
+    try {
+        gitContext = `\n- Git repo: ${execSync('git rev-parse --show-toplevel', { encoding: 'utf-8' }).trim()}, branch: ${execSync('git branch --show-current', { encoding: 'utf-8' }).trim()}`;
+    } catch {}
+
     console.clear();
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.3 (PRO RELEASE) ===`));
-    console.log(chalk.gray(`Logic: Qwen 2.5 Coder | Vision: Gemini 2.0`));
-    console.log(chalk.gray(`Tool Center: ${RUNTIMES_PATH}`));
-    console.log(chalk.gray(`Path: ${PROJECT_ROOT}\n`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.4 (PRO) ===`));
+    console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
+    console.log(chalk.gray(`Path: ${PROJECT_ROOT}${gitContext}\n`));
 
     const basePrompt = `You are Lucifer, a pro agentic AI for macOS. 
     CONTEXT:
-    - Source code at ${PROJECT_ROOT}.
-    - Tool dashboard at ${RUNTIMES_PATH} (node, python, go, rust, etc.).
+    - Source code at ${PROJECT_ROOT}.${gitContext}
+    - Tool dashboard at ${RUNTIMES_PATH}.
     RULES:
     1. Use surgical tools (read_file, replace_in_file) for editing.
-    2. Always give text summaries after tool use.
-    3. Use Markdown blocks for code.`;
+    2. Always give text summaries. 3. Use Markdown.`;
 
-    const evolvePrompt = `\nEVOLUTION MODE: You are currently auditing your own source code (index.ts). 
-    Run tests, find inefficiencies, and use 'propose_fix' for improvements.`;
-
-    let history: any[] = [
-        { role: "system", content: basePrompt + (isEvolving ? evolvePrompt : "") }
-    ];
+    let history: any[] = [{ role: "system", content: basePrompt + (isEvolving ? "\nEVOLUTION MODE: Audit yourself (index.ts)." : "") }];
 
     while (true) {
-        const query = await rl.question(chalk.green(`lucifer@${isEvolving ? 'refine' : 'm5'} > `));
+        const query = await rl.question(chalk.green(`lucifer@m5 > `));
         if (['exit', 'quit'].includes(query.toLowerCase())) break;
         if (!query.trim()) continue;
 
@@ -261,52 +246,62 @@ async function main() {
             process.stdout.write(chalk.magenta("Analyzing screen..."));
             const result = await seeScreen(query.replace('!screen', '').trim());
             console.log(`\n${chalk.white(result)}\n`);
+            fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !screen\n\n**Lucifer:** ${result}\n\n---\n\n`);
             continue;
         }
 
-        history.push({ role: "user", content: query });
+        if (query.startsWith('!clip')) {
+            const clipboardContent = execSync('pbpaste', { encoding: 'utf-8' });
+            history.push({ role: "user", content: `${query.replace('!clip', '').trim() || 'Analyze clipboard'}:\n\n${clipboardContent}` });
+        } else { history.push({ role: "user", content: query }); }
         
         let loopCount = 0;
         let finalResponse = "";
 
         try {
             while (loopCount < 5) {
-                // ISSUE 5 — Feedback during inference
                 process.stdout.write(chalk.gray('  [Thinking...]'));
-                const response = await localAI.chat.completions.create({
-                    model: "qwen2.5-coder-7b-instruct-mlx",
-                    messages: history,
-                    tools: tools as any,
-                });
-                process.stdout.write('\r' + ' '.repeat(20) + '\r'); // clear the line
+                const stream = await localAI.chat.completions.create({ model: "qwen2.5-coder-7b-instruct-mlx", messages: history, tools: tools as any, stream: true });
+                process.stdout.write('\r' + ' '.repeat(20) + '\r');
 
-                const assistantMsg = response.choices[0]!.message;
+                let assistantMsgContent = "";
+                let toolCalls: any[] = [];
+
+                for await (const chunk of stream) {
+                    const delta = chunk.choices[0]?.delta;
+                    if (delta?.content) {
+                        process.stdout.write(delta.content);
+                        assistantMsgContent += delta.content;
+                    }
+                    if (delta?.tool_calls) {
+                        for (const toolCallDelta of delta.tool_calls) {
+                            if (!toolCalls[toolCallDelta.index]) toolCalls[toolCallDelta.index] = { id: toolCallDelta.id, type: "function", function: { name: "", arguments: "" } };
+                            if (toolCallDelta.id) toolCalls[toolCallDelta.index].id = toolCallDelta.id;
+                            if (toolCallDelta.function?.name) toolCalls[toolCallDelta.index].function.name += toolCallDelta.function.name;
+                            if (toolCallDelta.function?.arguments) toolCalls[toolCallDelta.index].function.arguments += toolCallDelta.function.arguments;
+                        }
+                    }
+                }
+                console.log('\n');
+                const assistantMsg = { role: 'assistant', content: assistantMsgContent, tool_calls: toolCalls.length > 0 ? toolCalls : undefined };
                 history.push(assistantMsg);
-
-                if (assistantMsg.content) finalResponse = assistantMsg.content;
+                if (assistantMsgContent) finalResponse = assistantMsgContent;
                 if (!assistantMsg.tool_calls) break;
 
                 for (const call of assistantMsg.tool_calls) {
-                    const toolCall = call as any;
-                    const toolResult = executeTool(toolCall.function.name, JSON.parse(toolCall.function.arguments));
-                    history.push({ role: "tool", tool_call_id: toolCall.id, content: String(toolResult) });
+                    const toolResult = executeTool(call.function.name, JSON.parse(call.function.arguments));
+                    history.push({ role: "tool", tool_call_id: call.id, content: String(toolResult) });
                 }
                 loopCount++;
             }
-
-            console.log(chalk.white(finalResponse || "Task complete.") + '\n');
-        }
-        catch (err: any) {
-            console.log(chalk.red(`\nError: ${err.message}\n`));
+            fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** ${query}\n\n**Lucifer:** ${finalResponse || 'Task complete.'}\n\n---\n\n`);
+            if (loopCount > 1) { try { execSync(`osascript -e 'display notification "Task complete" with title "Lucifer"'`); } catch {} }
+        } catch (err: any) { console.log(chalk.red(`\nError: ${err.message}\n`));
         } finally {
-            // ISSUE 4 — History Trimming (Moved to finally)
-            const SYSTEM_MSG = history[0];
-            if (history.length > 40) {
-                history = [SYSTEM_MSG, ...history.slice(-39)];
-            }
+            if (history.length > 40) history = [history[0], ...history.slice(-39)];
         }
     }
+    if (toolsUsed.length > 0) fs.appendFileSync(LOG_FILE, `\n## Session Summary\nTools used: ${[...new Set(toolsUsed)].join(', ')}\n`);
     rl.close();
 }
-
 main().catch(console.error);
