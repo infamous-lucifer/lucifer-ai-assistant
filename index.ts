@@ -83,7 +83,7 @@ async function seeScreen(query: string): Promise<string> {
         fs.unlinkSync(screenshotPath);
 
         const result = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.0-flash",
             contents: [
                 { role: "user", parts: [
                     { text: query || "What is on my screen?" },
@@ -91,7 +91,7 @@ async function seeScreen(query: string): Promise<string> {
                 ]}
             ]
         });
-        return result.text;
+        return result.text || "No vision analysis generated.";
     } catch (e: any) {
         return `Vision Error: ${e.message}`;
     }
@@ -174,7 +174,10 @@ function resolveFilePath(filePath: string): string {
     if (path.isAbsolute(filePath)) return filePath;
     if (fs.existsSync(filePath)) return filePath;
     const rootPath = path.join(PROJECT_ROOT, filePath);
-    return fs.existsSync(rootPath) ? rootPath : filePath;
+    if (fs.existsSync(rootPath)) return rootPath;
+    const runtimePath = path.join(RUNTIMES_PATH, filePath);
+    if (fs.existsSync(runtimePath)) return runtimePath;
+    return filePath;
 }
 
 function executeTool(name: string, args: any): string {
@@ -228,8 +231,8 @@ async function main() {
     const isEvolving = args.includes('--evolve');
     
     console.clear();
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.2 (HARDENED) ===`));
-    console.log(chalk.gray(`Logic: Qwen 2.5 Coder | Vision: Gemini 1.5`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v4.3 (PRO RELEASE) ===`));
+    console.log(chalk.gray(`Logic: Qwen 2.5 Coder | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: ${RUNTIMES_PATH}`));
     console.log(chalk.gray(`Path: ${PROJECT_ROOT}\n`));
 
