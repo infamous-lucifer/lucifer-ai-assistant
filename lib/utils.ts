@@ -45,9 +45,19 @@ export function applyReplaceInFile(fileText: string, oldString: string, newStrin
 }
 
 export function pruneHistory(history: any[], maxLength: number): any[] {
-    if (history.length <= maxLength) return history;
-    if (history.length === 0) return [];
-    return [history[0], ...history.slice(-(maxLength - 1))];
+    if (history.length <= maxLength || history.length === 0) return history;
+    
+    const systemPrompt = history[0];
+    let pruned = history.slice(-(maxLength - 1));
+
+    // Ensure we don't start with an orphaned tool response
+    // If the first message in our new slice is a 'tool' role, it means its 
+    // preceding 'assistant' (the one that made the call) was pruned.
+    while (pruned.length > 0 && pruned[0].role === 'tool') {
+        pruned.shift();
+    }
+
+    return [systemPrompt, ...pruned];
 }
 
 export function getLogsToDelete(logs: string[], maxLogs: number): string[] {

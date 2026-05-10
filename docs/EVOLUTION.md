@@ -198,4 +198,37 @@ The system was refactored into the **Adaptive Core**. This architecture decouple
 - Added integration with terminal diagnostics (`npm outdated`) to identify system-level maintenance needs and propose manifest updates via `REVIEW_REQUEST.md`.
 
 ---
-**Status:** Release v5.0 Complete. Lucifer is now an evergreen, adaptive, and self-healing agent for the modern macOS workspace.
+**Status:** Release v5.1 Complete. Lucifer is now a truly autonomous agent with direct research capabilities.
+
+# 🛡️ Lucifer Evolution: Phase 8 (Resiliency Plus & v5.2 Context Hardening)
+
+In Phase 8, we addressed critical logic flaws related to context synchronization and agentic loop stability. This phase ensures that "What the User Sees, the Model Knows."
+
+## 📋 Evolution Summary
+The core engine was hardened against **Context Isolation** (shortcuts now feed the history) and **OpenAI Schema Violations** (pruning now respects tool-call pairs). We also improved streaming reliability for local inference engines.
+
+## 🛠 Resiliency Plus (v5.2)
+| Feature | Status in v5.1 | Status in v5.2 (Final) |
+| :--- | :--- | :--- |
+| **Shortcut Context** | Isolated from model | **Synchronized Synthetic History** |
+| **History Pruning** | Naive slicing (Orphan risk) | **Context-Aware Pair Preservation** |
+| **Loop Visibility** | Silent drops at step 5 | **Explicit Maximum Step Warnings** |
+| **Stream Parsing** | Vulnerable to sparse arrays | **Gap-Sanitized Tool Call Arrays** |
+| **Execution Architecture** | Blocking `execSync` | **Synchronous but Timeout-Hardened** |
+
+## 🚀 Phase 8: Key Implementations
+
+### 1. Unified Context (Synthetic History)
+- Every direct shortcut command (`!search`, `!report`, `!read`, etc.) now automatically injects its results back into the AI's history array.
+- This ensures the model can reference, summarize, or act upon results retrieved via high-efficiency shortcuts.
+
+### 2. Context-Aware Pruning
+- Refactored `pruneHistory` to specifically detect and prevent orphaned `tool` response messages.
+- The system now ensures that if a tool call is pruned, its response is also removed, maintaining strict compatibility with the LM Studio / OpenAI API schema.
+
+### 3. Agentic Loop Hardening
+- Added an explicit warning when the ReAct loop reaches the 5-step autonomous limit.
+- Implemented `filter(Boolean)` on tool call arrays to handle irregular chunk emissions from local MLX/llama.cpp engines, preventing runtime crashes during sparse array processing.
+
+---
+**Status:** Release v5.2 Complete. Lucifer is now the most resilient and context-consistent agentic assistant in its class.

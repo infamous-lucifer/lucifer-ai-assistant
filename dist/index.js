@@ -22108,7 +22108,8 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 // --- Dynamic Path Resolution ---
 const __filename = (0,node_url__WEBPACK_IMPORTED_MODULE_10__.fileURLToPath)(import.meta.url);
 const __dirname = node_path__WEBPACK_IMPORTED_MODULE_6___default().dirname(__filename);
-const PROJECT_ROOT = process.env.LUCIFER_HOME || __dirname;
+// If running from 'dist', the project root is one level up
+const PROJECT_ROOT = process.env.LUCIFER_HOME || (__dirname.endsWith('dist') ? node_path__WEBPACK_IMPORTED_MODULE_6___default().join(__dirname, '..') : __dirname);
 const CONFIG_FILE = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(node_os__WEBPACK_IMPORTED_MODULE_7___default().homedir(), '.lucifer-env');
 const BACKUP_FILE = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(PROJECT_ROOT, "index.ts.bak");
 const RUNTIMES_PATH = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(node_os__WEBPACK_IMPORTED_MODULE_7___default().homedir(), "runtimes");
@@ -22154,7 +22155,7 @@ async function syncDependencies() {
 const args = process.argv.slice(2);
 function printHelp() {
     console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().cyan(`
-=== LUCIFER v5.1 (ADAPTIVE CORE) — Quick Reference ===
+=== LUCIFER v5.2 (RESILIENCY PLUS) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -22445,7 +22446,7 @@ async function main() {
     catch { }
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk__WEBPACK_IMPORTED_MODULE_8___default().cyan('─'.repeat(50)) + '\n');
-    console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().cyan(`=== LUCIFER-HYBRID v5.1 (ADAPTIVE CORE) ===`));
+    console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().cyan(`=== LUCIFER-HYBRID v5.2 (RESILIENCY PLUS) ===`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().gray(`Tool Center: (Abstracted)`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().gray(`Path: (Abstracted)${gitContext}\n`));
@@ -22489,6 +22490,7 @@ async function main() {
             process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_8___default().blue(`Searching: ${searchQuery}...\n`));
             const result = await executeTool("search_web", { query: searchQuery });
             console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_8___default().white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!search ${searchQuery}'. Result:\n${result}` });
             node_fs__WEBPACK_IMPORTED_MODULE_5___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !search ${searchQuery}\n\n**Lucifer (Search Result):** ${result}\n\n---\n\n`);
             continue;
         }
@@ -22496,6 +22498,7 @@ async function main() {
             process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_8___default().blue("Generating Deep System Report...\n"));
             const result = await executeTool("get_deep_system_report", {});
             console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_8___default().white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!report'. Result:\n${result}` });
             node_fs__WEBPACK_IMPORTED_MODULE_5___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !report\n\n**Lucifer (System Report):** ${result}\n\n---\n\n`);
             continue;
         }
@@ -22508,6 +22511,7 @@ async function main() {
             try {
                 const result = await executeTool("read_file", { path: readPath });
                 console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_8___default().white(result)}\n`);
+                history.push({ role: "system", content: `User executed '!read ${readPath}'. Content:\n${result}` });
                 node_fs__WEBPACK_IMPORTED_MODULE_5___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !read ${readPath}\n\n**Lucifer (File Read):**\n${result}\n\n---\n\n`);
             }
             catch (e) {
@@ -22518,13 +22522,19 @@ async function main() {
         if (query === '!test') {
             console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().blue("Running project test suite...\n"));
             try {
-                (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)('npm test', { stdio: 'inherit', cwd: PROJECT_ROOT });
+                const result = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)('npm test', { encoding: 'utf-8', cwd: PROJECT_ROOT });
+                console.log(result);
+                history.push({ role: "system", content: `User executed '!test'. Result:\n${result}` });
             }
-            catch (e) { }
+            catch (e) {
+                console.log(e.stdout?.toString() || e.message);
+                history.push({ role: "system", content: `User executed '!test'. Result: FAILED\n${e.stdout?.toString()}` });
+            }
             continue;
         }
         if (query.startsWith('!status')) {
             await runStatusCheck();
+            history.push({ role: "system", content: `User executed '!status'. Environment check completed.` });
             continue;
         }
         if (query.startsWith('!tldr')) {
@@ -22536,6 +22546,7 @@ async function main() {
             process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_8___default().blue(`Fetching cheat sheet for: ${cmdName}...\n`));
             const result = await executeTool("get_command_help", { command: cmdName });
             console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_8___default().white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!tldr ${cmdName}'. Cheat sheet:\n${result}` });
             node_fs__WEBPACK_IMPORTED_MODULE_5___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !tldr ${cmdName}\n\n**Lucifer (Cheat Sheet):**\n${result}\n\n---\n\n`);
             continue;
         }
@@ -22543,7 +22554,9 @@ async function main() {
             const lmsPath = node_path__WEBPACK_IMPORTED_MODULE_6___default().join(node_os__WEBPACK_IMPORTED_MODULE_7___default().homedir(), '.lmstudio/bin/lms');
             console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().blue("Checking LM Studio Status...\n"));
             try {
-                (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`${lmsPath} status`, { stdio: 'inherit' });
+                const status = (0,node_child_process__WEBPACK_IMPORTED_MODULE_4__.execSync)(`${lmsPath} status`, { encoding: 'utf-8' });
+                console.log(status);
+                history.push({ role: "system", content: `User executed '!lms'. Status:\n${status}` });
             }
             catch (e) {
                 console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().red("Error running lms command."));
@@ -22554,6 +22567,7 @@ async function main() {
             process.stdout.write(chalk__WEBPACK_IMPORTED_MODULE_8___default().magenta("Analyzing screen..."));
             const result = await seeScreen(query.replace('!screen', '').trim());
             console.log(`\n${chalk__WEBPACK_IMPORTED_MODULE_8___default().white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!screen'. Gemini Vision analysis:\n${result}` });
             node_fs__WEBPACK_IMPORTED_MODULE_5___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !screen\n\n**Lucifer:** ${result}\n\n---\n\n`);
             continue;
         }
@@ -22606,7 +22620,9 @@ async function main() {
                     finalResponse = assistantMsgContent;
                 if (!assistantMsg.tool_calls)
                     break;
-                for (const call of assistantMsg.tool_calls) {
+                // N-6: Sanitize array (filter gaps) before processing
+                const validToolCalls = assistantMsg.tool_calls.filter(Boolean);
+                for (const call of validToolCalls) {
                     let parsedArgs;
                     try {
                         parsedArgs = JSON.parse(call.function.arguments);
@@ -22619,6 +22635,9 @@ async function main() {
                     history.push({ role: "tool", tool_call_id: call.id, content: String(toolResult) });
                 }
                 loopCount++;
+            }
+            if (loopCount >= 5) {
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_8___default().red("  [Warning] Maximum autonomous steps (5) reached. Halting execution."));
             }
             node_fs__WEBPACK_IMPORTED_MODULE_5___default().appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** ${query}\n\n**Lucifer:** ${finalResponse || 'Task complete.'}\n\n---\n\n`);
             if (loopCount > 1) {
@@ -22701,11 +22720,17 @@ function applyReplaceInFile(fileText, oldString, newString) {
     return { ok: true, content: fileText.replace(oldString, newString) };
 }
 function pruneHistory(history, maxLength) {
-    if (history.length <= maxLength)
+    if (history.length <= maxLength || history.length === 0)
         return history;
-    if (history.length === 0)
-        return [];
-    return [history[0], ...history.slice(-(maxLength - 1))];
+    const systemPrompt = history[0];
+    let pruned = history.slice(-(maxLength - 1));
+    // Ensure we don't start with an orphaned tool response
+    // If the first message in our new slice is a 'tool' role, it means its 
+    // preceding 'assistant' (the one that made the call) was pruned.
+    while (pruned.length > 0 && pruned[0].role === 'tool') {
+        pruned.shift();
+    }
+    return [systemPrompt, ...pruned];
 }
 function getLogsToDelete(logs, maxLogs) {
     if (logs.length <= maxLogs)

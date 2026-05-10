@@ -23,7 +23,8 @@ import {
 // --- Dynamic Path Resolution ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PROJECT_ROOT: string = process.env.LUCIFER_HOME || __dirname;
+// If running from 'dist', the project root is one level up
+const PROJECT_ROOT: string = process.env.LUCIFER_HOME || (__dirname.endsWith('dist') ? path.join(__dirname, '..') : __dirname);
 const CONFIG_FILE = path.join(os.homedir(), '.lucifer-env');
 const BACKUP_FILE = path.join(PROJECT_ROOT, "index.ts.bak");
 const RUNTIMES_PATH = path.join(os.homedir(), "runtimes");
@@ -71,7 +72,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v5.1 (ADAPTIVE CORE) — Quick Reference ===
+=== LUCIFER v5.2 (RESILIENCY PLUS) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -337,7 +338,7 @@ async function main() {
 
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v5.1 (ADAPTIVE CORE) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v5.2 (RESILIENCY PLUS) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: (Abstracted)${gitContext}\n`));
@@ -378,6 +379,7 @@ async function main() {
             process.stdout.write(chalk.blue(`Searching: ${searchQuery}...\n`));
             const result = await executeTool("search_web", { query: searchQuery });
             console.log(`\n${chalk.white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!search ${searchQuery}'. Result:\n${result}` });
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !search ${searchQuery}\n\n**Lucifer (Search Result):** ${result}\n\n---\n\n`);
             continue;
         }
@@ -386,6 +388,7 @@ async function main() {
             process.stdout.write(chalk.blue("Generating Deep System Report...\n"));
             const result = await executeTool("get_deep_system_report", {});
             console.log(`\n${chalk.white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!report'. Result:\n${result}` });
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !report\n\n**Lucifer (System Report):** ${result}\n\n---\n\n`);
             continue;
         }
@@ -396,6 +399,7 @@ async function main() {
             try {
                 const result = await executeTool("read_file", { path: readPath });
                 console.log(`\n${chalk.white(result)}\n`);
+                history.push({ role: "system", content: `User executed '!read ${readPath}'. Content:\n${result}` });
                 fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !read ${readPath}\n\n**Lucifer (File Read):**\n${result}\n\n---\n\n`);
             } catch (e: any) { console.log(chalk.red(`Error: ${e.message}`)); }
             continue;
@@ -404,13 +408,19 @@ async function main() {
         if (query === '!test') {
             console.log(chalk.blue("Running project test suite...\n"));
             try {
-                execSync('npm test', { stdio: 'inherit', cwd: PROJECT_ROOT });
-            } catch (e) {}
+                const result = execSync('npm test', { encoding: 'utf-8', cwd: PROJECT_ROOT });
+                console.log(result);
+                history.push({ role: "system", content: `User executed '!test'. Result:\n${result}` });
+            } catch (e: any) {
+                console.log(e.stdout?.toString() || e.message);
+                history.push({ role: "system", content: `User executed '!test'. Result: FAILED\n${e.stdout?.toString()}` });
+            }
             continue;
         }
 
         if (query.startsWith('!status')) {
             await runStatusCheck();
+            history.push({ role: "system", content: `User executed '!status'. Environment check completed.` });
             continue;
         }
 
@@ -420,6 +430,7 @@ async function main() {
             process.stdout.write(chalk.blue(`Fetching cheat sheet for: ${cmdName}...\n`));
             const result = await executeTool("get_command_help", { command: cmdName });
             console.log(`\n${chalk.white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!tldr ${cmdName}'. Cheat sheet:\n${result}` });
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !tldr ${cmdName}\n\n**Lucifer (Cheat Sheet):**\n${result}\n\n---\n\n`);
             continue;
         }
@@ -428,7 +439,9 @@ async function main() {
             const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
             console.log(chalk.blue("Checking LM Studio Status...\n"));
             try {
-                execSync(`${lmsPath} status`, { stdio: 'inherit' });
+                const status = execSync(`${lmsPath} status`, { encoding: 'utf-8' });
+                console.log(status);
+                history.push({ role: "system", content: `User executed '!lms'. Status:\n${status}` });
             } catch (e) { console.log(chalk.red("Error running lms command.")); }
             continue;
         }
@@ -437,6 +450,7 @@ async function main() {
             process.stdout.write(chalk.magenta("Analyzing screen..."));
             const result = await seeScreen(query.replace('!screen', '').trim());
             console.log(`\n${chalk.white(result)}\n`);
+            history.push({ role: "system", content: `User executed '!screen'. Gemini Vision analysis:\n${result}` });
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** !screen\n\n**Lucifer:** ${result}\n\n---\n\n`);
             continue;
         }
@@ -484,7 +498,10 @@ async function main() {
                 if (assistantMsgContent) finalResponse = assistantMsgContent;
                 if (!assistantMsg.tool_calls) break;
 
-                for (const call of assistantMsg.tool_calls) {
+                // N-6: Sanitize array (filter gaps) before processing
+                const validToolCalls = assistantMsg.tool_calls.filter(Boolean);
+
+                for (const call of validToolCalls) {
                     let parsedArgs: unknown;
                     try {
                         parsedArgs = JSON.parse(call.function.arguments);
@@ -496,6 +513,9 @@ async function main() {
                     history.push({ role: "tool", tool_call_id: call.id, content: String(toolResult) });
                 }
                 loopCount++;
+            }
+            if (loopCount >= 5) {
+                console.log(chalk.red("  [Warning] Maximum autonomous steps (5) reached. Halting execution."));
             }
             fs.appendFileSync(LOG_FILE, `## ${new Date().toLocaleTimeString()}\n\n**You:** ${query}\n\n**Lucifer:** ${finalResponse || 'Task complete.'}\n\n---\n\n`);
             if (loopCount > 1) { try { execFileSync('osascript', ['-e', 'display notification "Task complete" with title "Lucifer"']); } catch {} }
