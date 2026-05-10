@@ -21,20 +21,44 @@ In Phase 2, we decoupled "Reasoning/Coding" from "Vision". By moving the main br
 - **Setup:** Configured to run on 8 threads for thermal safety on the MacBook Air M5.
 - **Server:** Running on `localhost:1234` using the OpenAI-compatible endpoint.
 
-### 2. The Hybrid Loop
-- **General Queries:** Handled locally by Qwen.
-- **Agentic Tasks:** Qwen decides when to run local shell commands via the `run_command` tool.
-- **Vision Tasks:** Triggered by the `!screen` command, which bypasses the local model and calls the Gemini API directly.
+---
 
-## 🏃 How to Run the Hybrid Version
-1. **Open LM Studio.**
-2. **Load Qwen 2.5 Coder 7B.**
-3. **Start the Local Server** (ensure port is `1234`).
-4. Run Lucifer:
+# 🛡️ Lucifer Evolution: Phase 3 (Hardening & Refinement)
+
+In Phase 3, we transitioned from a prototype to a production-grade tool by closing the gap between documentation and implementation.
+
+## 📋 Evolution Summary
+The focus was on **Reliability, Security, and UX**. We implemented the missing features from the README and hardened the core engine against common agentic failure modes.
+
+## 🛠 Feature Realization (v4.1)
+| Feature | Status in v3.5 | Status in v4.1 (Hardened) |
+| :--- | :--- | :--- |
+| **Vision Bridge** | Initialized but unused | **Fully Functional** (`!screen` command) |
+| **Security Rails** | Documented only | **Enforced** (Blocked `sudo`, `rm -rf`, etc.) |
+| **Rollback Logic** | Backups created | **Active** (`--rollback` flag restores state) |
+| **Memory Control** | Unbounded Growth | **FIFO Sliding Window** (Trims at 40 msgs) |
+| **UX Feedback** | Silent reasoning | **Live Thinking Indicator** (`Thinking...`) |
+
+## 🚀 Phase 3: Technical Refinements
+
+### 1. Security Guard Rails
+- Hardcoded a block-list of high-risk shell commands.
+- Returns a clean error message to the model if it attempts a privileged action.
+
+### 2. History Trimming
+- Implemented a sliding window approach that preserves the system prompt while discarding old context.
+- Prevents the context window overflow that would otherwise crash local inference.
+
+### 3. Dynamic Path Resolution
+- Replaced hardcoded `/Users/lucifer` paths with `import.meta.url`.
+- Lucifer now detects its home folder automatically, making the codebase portable and robust.
+
+## 🏃 How to Run the Current Version
+1. **Ensure LM Studio is running** with Qwen 2.5 Coder 7B.
+2. **Run Lucifer** from anywhere:
    ```bash
-   cd /Users/lucifer/lucifer-sandbox
-   npx ts-node index.ts
+   lucifer
    ```
 
 ---
-**Status:** Phase 2 Complete. Lucifer is now a private, high-speed, and hybrid-capable assistant.
+**Status:** Phase 3 Complete. Lucifer is now a stable, secure, and fully documented professional tool.
