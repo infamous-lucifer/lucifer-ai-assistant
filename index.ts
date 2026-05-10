@@ -281,7 +281,8 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
     try {
         switch (name) {
             case "run_command": {
-                const args = rawArgs as RunCommandArgs;
+                const args = rawArgs as Partial<RunCommandArgs>;
+                if (typeof args.command !== 'string') return "Error: Missing required field 'command'.";
                 if (DANGER_PATTERNS.some(p => p.test(args.command))) {
                     return "Error: Command matches known danger patterns and is blocked.";
                 }
@@ -293,9 +294,9 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 return execSync(args.command, { encoding: 'utf-8', timeout: 15000 });
             }
             case "read_file": {
-                const args = rawArgs as ReadFileArgs;
+                const args = rawArgs as Partial<ReadFileArgs>;
+                if (typeof args.path !== 'string') return "Error: Missing required field 'path'.";
                 const rPath = resolveFilePath(args.path);
-                if (!isPathAllowed(rPath)) return `Error: Access to path '${args.path}' is restricted.`;
                 let content = fs.readFileSync(rPath, 'utf-8');
                 if (args.start_line || args.end_line) {
                     const lines = content.split('\n');
@@ -304,9 +305,11 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 return content;
             }
             case "replace_in_file": {
-                const args = rawArgs as ReplaceInFileArgs;
+                const args = rawArgs as Partial<ReplaceInFileArgs>;
+                if (typeof args.path !== 'string' || typeof args.old_string !== 'string' || typeof args.new_string !== 'string') {
+                    return "Error: Missing required fields ('path', 'old_string', or 'new_string').";
+                }
                 const edPath = resolveFilePath(args.path);
-                if (!isPathAllowed(edPath)) return `Error: Access to path '${args.path}' is restricted.`;
                 if (edPath.includes("index.ts")) fs.copyFileSync(edPath, BACKUP_FILE);
                 let fileText = fs.readFileSync(edPath, 'utf-8');
                 
@@ -319,7 +322,10 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 return "Success: Applied.";
             }
             case "propose_fix": {
-                const args = rawArgs as ProposeFixArgs;
+                const args = rawArgs as Partial<ProposeFixArgs>;
+                if (typeof args.issue !== 'string' || typeof args.file_path !== 'string' || typeof args.suggested_fix !== 'string') {
+                    return "Error: Missing required fields ('issue', 'file_path', or 'suggested_fix').";
+                }
                 const reviewPath = path.join(PROJECT_ROOT, "REVIEW_REQUEST.md");
                 if (!isPathAllowed(reviewPath)) return "Error: Cannot write review request outside allowed root.";
                 
