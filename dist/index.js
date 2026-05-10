@@ -22162,7 +22162,7 @@ async function syncDependencies() {
 const args = process.argv.slice(2);
 function printHelp() {
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`
-=== LUCIFER v6.0 (PROFESSIONAL CORE) — Quick Reference ===
+=== LUCIFER v7.0 (INDUSTRIAL CORE) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -22176,6 +22176,7 @@ STARTUP
   lucifer --help       Show this message
 
 IN-SESSION COMMANDS
+  !fix <issue>         Guided auto-repair (Semantic Search + Read + Fix)
   !search <query>      Direct web research (DuckDuckGo)
   !tldr <command>      Get quick command cheat sheets
   !report              Instant deep system diagnostics
@@ -22349,6 +22350,7 @@ async function seeScreen(query) {
     }
 }
 let toolsUsed = [];
+const verifiedReads = new Set();
 async function executeTool(name, rawArgs) {
     toolsUsed.push(name);
     if (typeof rawArgs !== 'object' || rawArgs === null)
@@ -22443,6 +22445,7 @@ async function executeTool(name, rawArgs) {
                 try {
                     const rPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
                     const fileContent = node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(rPath, 'utf-8');
+                    verifiedReads.add(rPath); // Mark as read for editing lock
                     let lines = fileContent.split('\n');
                     const start = args.start_line ? Math.max(1, args.start_line) : 1;
                     const end = args.end_line ? Math.min(lines.length, args.end_line) : lines.length;
@@ -22458,6 +22461,11 @@ async function executeTool(name, rawArgs) {
                 const args = rawArgs;
                 if (!args.search_term || !args.path)
                     return "Error: Missing search_term or path.";
+                // Step 1: Pre-Flight Validator (Language Syntax check)
+                const pythonSyntax = /sys\.argv|import\s+os|os\.path|def\s+\w+\(|print\(/;
+                if (pythonSyntax.test(args.search_term)) {
+                    return `[Validator] Rejected: You are searching for Python syntax in a TypeScript/Node.js project. Use Node syntax (e.g. process.argv).`;
+                }
                 console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow(`  [Action] Searching codebase for: ${args.search_term}`));
                 try {
                     const searchPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
@@ -22477,6 +22485,10 @@ async function executeTool(name, rawArgs) {
                 }
                 try {
                     const edPath = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .resolveFilePath */ .Q)(args.path, ALLOWED_ROOTS);
+                    // Step 2: Read-Before-Write Lock
+                    if (!verifiedReads.has(edPath)) {
+                        return `[Security] Rejected: You must 'read_file' on ${args.path} before editing to obtain exact line number anchors.`;
+                    }
                     const fileContent = node_fs__WEBPACK_IMPORTED_MODULE_6___default().readFileSync(edPath, 'utf-8');
                     const result = (0,_lib_utils_js__WEBPACK_IMPORTED_MODULE_12__/* .applyEditFileRange */ .wc)(fileContent, args.start_line, args.end_line, args.new_content);
                     if (!result.ok)
@@ -22555,7 +22567,7 @@ async function main() {
     catch { }
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan('─'.repeat(50)) + '\n');
-    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v6.0 (PROFESSIONAL CORE) ===`));
+    console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().cyan(`=== LUCIFER-HYBRID v7.0 (INDUSTRIAL CORE) ===`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Tool Center: (Abstracted)`));
     console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().gray(`Path: (Abstracted)${gitContext}\n`));
@@ -22606,6 +22618,33 @@ async function main() {
             break;
         if (!query.trim())
             continue;
+        if (query.startsWith('!fix')) {
+            const issue = query.replace('!fix', '').trim();
+            if (!issue) {
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow("Usage: !fix <issue description>"));
+                continue;
+            }
+            console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().magenta(`\n  [Pipeline] Starting guided fix for: ${issue}`));
+            // Step A: Autonomous Semantic Search
+            const searchResult = await executeTool("semantic_search", { query: issue });
+            const topFiles = searchResult.match(/- (.*?) \(Score:/g)?.map(m => m.replace('- ', '').split(' (')[0]) || [];
+            if (topFiles.length === 0) {
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().yellow("  [Pipeline] Could not find relevant files. Try a different description."));
+                continue;
+            }
+            // Step B: Auto-Read Top Files
+            let aggregatedContext = "";
+            for (const file of topFiles.slice(0, 2)) {
+                console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().blue(`  [Pipeline] Reading context from: ${file}`));
+                const content = await executeTool("read_file", { path: file });
+                aggregatedContext += `\n--- FILE: ${file} ---\n${content}\n`;
+            }
+            // Step C: Trigger Micro-Prompt
+            const fixPrompt = `[GUIDED FIX MODE]\nISSUE: ${issue}\nCONTEXT:${aggregatedContext}\n\nTASK: Output ONLY the 'edit_file_lines' JSON payload to solve the issue. Do not explain anything.`;
+            history.push({ role: "system", content: fixPrompt });
+            console.log(chalk__WEBPACK_IMPORTED_MODULE_9___default().green("  [Pipeline] Context ready. Sending to model..."));
+            // Fall through to the normal thinking loop
+        }
         if (query.startsWith('!search')) {
             const searchQuery = query.replace('!search', '').trim();
             if (!searchQuery) {

@@ -80,7 +80,7 @@ const args = process.argv.slice(2);
 
 function printHelp() {
     console.log(chalk.cyan(`
-=== LUCIFER v6.0 (PROFESSIONAL CORE) — Quick Reference ===
+=== LUCIFER v7.0 (INDUSTRIAL CORE) — Quick Reference ===
 
 STARTUP
   lucifer              Start assistant (normal mode)
@@ -94,6 +94,7 @@ STARTUP
   lucifer --help       Show this message
 
 IN-SESSION COMMANDS
+  !fix <issue>         Guided auto-repair (Semantic Search + Read + Fix)
   !search <query>      Direct web research (DuckDuckGo)
   !tldr <command>      Get quick command cheat sheets
   !report              Instant deep system diagnostics
@@ -249,6 +250,8 @@ interface ListFilesArgs { path?: string; }
 interface SearchCodebaseArgs { search_term: string; path: string; }
 
 let toolsUsed: string[] = [];
+const verifiedReads = new Set<string>();
+
 async function executeTool(name: string, rawArgs: unknown): Promise<string> {
     toolsUsed.push(name);
 
@@ -329,6 +332,8 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 try {
                     const rPath = resolveFilePath(args.path, ALLOWED_ROOTS);
                     const fileContent = fs.readFileSync(rPath, 'utf-8');
+                    verifiedReads.add(rPath); // Mark as read for editing lock
+                    
                     let lines = fileContent.split('\n');
                     const start = args.start_line ? Math.max(1, args.start_line) : 1;
                     const end = args.end_line ? Math.min(lines.length, args.end_line) : lines.length;
@@ -340,6 +345,13 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
             case "search_codebase": {
                 const args = rawArgs as Partial<SearchCodebaseArgs>;
                 if (!args.search_term || !args.path) return "Error: Missing search_term or path.";
+
+                // Step 1: Pre-Flight Validator (Language Syntax check)
+                const pythonSyntax = /sys\.argv|import\s+os|os\.path|def\s+\w+\(|print\(/;
+                if (pythonSyntax.test(args.search_term)) {
+                    return `[Validator] Rejected: You are searching for Python syntax in a TypeScript/Node.js project. Use Node syntax (e.g. process.argv).`;
+                }
+
                 console.log(chalk.yellow(`  [Action] Searching codebase for: ${args.search_term}`));
                 try {
                     const searchPath = resolveFilePath(args.path, ALLOWED_ROOTS);
@@ -357,6 +369,12 @@ async function executeTool(name: string, rawArgs: unknown): Promise<string> {
                 }
                 try {
                     const edPath = resolveFilePath(args.path, ALLOWED_ROOTS);
+                    
+                    // Step 2: Read-Before-Write Lock
+                    if (!verifiedReads.has(edPath)) {
+                        return `[Security] Rejected: You must 'read_file' on ${args.path} before editing to obtain exact line number anchors.`;
+                    }
+
                     const fileContent = fs.readFileSync(edPath, 'utf-8');
                     const result = applyEditFileRange(fileContent, args.start_line, args.end_line, args.new_content);
                     if (!result.ok) return result.error;
@@ -431,7 +449,7 @@ async function main() {
 
     // N-3: Softer separator instead of clear()
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
-    console.log(chalk.cyan(`=== LUCIFER-HYBRID v6.0 (PROFESSIONAL CORE) ===`));
+    console.log(chalk.cyan(`=== LUCIFER-HYBRID v7.0 (INDUSTRIAL CORE) ===`));
     console.log(chalk.gray(`Logic: Qwen 2.5 | Vision: Gemini 2.0`));
     console.log(chalk.gray(`Tool Center: (Abstracted)`));
     console.log(chalk.gray(`Path: (Abstracted)${gitContext}\n`));
@@ -489,6 +507,36 @@ async function main() {
 
         if (['exit', 'quit'].includes(query.toLowerCase())) break;
         if (!query.trim()) continue;
+
+        if (query.startsWith('!fix')) {
+            const issue = query.replace('!fix', '').trim();
+            if (!issue) { console.log(chalk.yellow("Usage: !fix <issue description>")); continue; }
+
+            console.log(chalk.magenta(`\n  [Pipeline] Starting guided fix for: ${issue}`));
+            
+            // Step A: Autonomous Semantic Search
+            const searchResult = await executeTool("semantic_search", { query: issue });
+            const topFiles = searchResult.match(/- (.*?) \(Score:/g)?.map(m => m.replace('- ', '').split(' (')[0]) || [];
+
+            if (topFiles.length === 0) {
+                console.log(chalk.yellow("  [Pipeline] Could not find relevant files. Try a different description."));
+                continue;
+            }
+
+            // Step B: Auto-Read Top Files
+            let aggregatedContext = "";
+            for (const file of topFiles.slice(0, 2)) {
+                console.log(chalk.blue(`  [Pipeline] Reading context from: ${file}`));
+                const content = await executeTool("read_file", { path: file });
+                aggregatedContext += `\n--- FILE: ${file} ---\n${content}\n`;
+            }
+
+            // Step C: Trigger Micro-Prompt
+            const fixPrompt = `[GUIDED FIX MODE]\nISSUE: ${issue}\nCONTEXT:${aggregatedContext}\n\nTASK: Output ONLY the 'edit_file_lines' JSON payload to solve the issue. Do not explain anything.`;
+            history.push({ role: "system", content: fixPrompt });
+            console.log(chalk.green("  [Pipeline] Context ready. Sending to model..."));
+            // Fall through to the normal thinking loop
+        }
 
         if (query.startsWith('!search')) {
             const searchQuery = query.replace('!search', '').trim();
