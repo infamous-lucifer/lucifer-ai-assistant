@@ -58,11 +58,13 @@ lucifer
 | **v3.5** | Precision Phase | Added surgical tools (`replace_in_file`) and range-based reading. |
 | **v4.4** | Daily Driver | Streaming output, onboarding wizard, session logging, and macOS integration. |
 | **v4.5** | Deep Insight | Advanced system diagnostics (`get_deep_system_report`) and API polish. |
+| **v4.6** | Security Hardened | Mandatory command approval, path traversal protection, and injection defense. |
 
 ## 🛡 Security & Safety
-- **Guard Rails:** Hardcoded blocks for dangerous commands (e.g., `rm -rf /`, `sudo`, `mkfs`).
+- **Mandatory Approval:** All terminal commands require explicit manual approval ('y/n') before execution.
+- **Path Guarding:** File operations are strictly restricted to the project root and allowed runtime directories.
+- **Injection Defense:** Clipboard content is treated as untrusted data to prevent prompt injection attacks.
 - **Privacy:** 100% of your code and terminal data stays local. Only screenshots are sent to Gemini API.
-- **Human-in-the-Loop:** All evolution proposals require manual approval before implementation.
 
 ---
 *Created with 🖤 for the M5 MacBook Air.*

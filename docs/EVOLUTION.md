@@ -49,3 +49,39 @@ The focus shifted to **Reliability, UX, and Observability**. We implemented stre
 
 ---
 **Status:** Release v4.5 Complete. Lucifer is now a stable, high-observability, and production-ready macOS assistant.
+
+# 🛡️ Lucifer Evolution: Phase 4 (Security Hardening & v4.6 Production Readiness)
+
+In Phase 4, we addressed critical security vulnerabilities identified during a comprehensive audit. The focus was on protecting the host system from malicious prompt injections and unauthorized filesystem access.
+
+## 📋 Evolution Summary
+The system transitioned from a "soft blocklist" security model to an **Aggressive Sandboxing & Mandatory Approval** model. This ensures that even if the AI is compromised via prompt injection, it cannot execute destructive commands or exfiltrate sensitive files without human consent.
+
+## 🛠 Security Hardening (v4.6)
+| Feature | Status in v4.5 | Status in v4.6 (Final) |
+| :--- | :--- | :--- |
+| **Command Safety** | Passive Blocklist (4 patterns) | **Active Approval & Danger Pattern Matching** |
+| **Filesystem Safety**| Unrestricted access | **Path Traversal Protection (Allowlist only)** |
+| **Input Integrity** | Direct clipboard injection | **Demarcated & Untrusted Injection Defense** |
+| **Race Conditions** | Module-level uninitialized globals | **Optional Initialization with Guard Checks** |
+
+## 🚀 Phase 4: Key Implementations
+
+### 1. Mandatory Human-in-the-Loop
+- All `run_command` executions now pause for manual user confirmation ('y/n').
+- Added an advanced `DANGER_PATTERNS` regex engine to flag suspicious commands before the approval prompt.
+
+### 2. Filesystem Sandboxing
+- Implemented `isPathAllowed` to restrict file tools (`read_file`, `replace_in_file`, `propose_fix`) to the Project Root and Runtime directories.
+- Prevents exfiltration of SSH keys, system configs, or user documents.
+
+### 3. Prompt Injection Defense
+- Clipboard content (`!clip`) is now wrapped in `<untrusted_clipboard_content>` tags.
+- The system prompt instructions were hardened to prevent the model from following commands found within the clipboard.
+
+### 4. Race Condition & Type Safety
+- Refactored global AI instances (`ai`, `localAI`) to be optional with explicit null checks to prevent runtime race conditions during startup.
+- Transitioned the entire tool execution pipeline to an asynchronous flow to support interactive user approvals.
+
+---
+**Status:** Release v4.6 Complete. Lucifer is now a security-hardened, production-ready agent.
