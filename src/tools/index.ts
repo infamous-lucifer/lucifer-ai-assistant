@@ -290,7 +290,7 @@ export const toolHandlers: Record<string, ToolHandler> = {
         const screenshotPath = path.join(os.tmpdir(), `gourmet-scrape-${Date.now()}.png`);
         console.log(chalk.magenta(`  [Vision] Capturing recipe from: ${args.url}`));
         try {
-            execSync(`open "${args.url}"`);
+            execFileSync('open', [args.url]);
             await new Promise(resolve => setTimeout(resolve, 5000));
             execSync(`screencapture -x ${screenshotPath}`);
             const imageData = fs.readFileSync(screenshotPath).toString('base64');

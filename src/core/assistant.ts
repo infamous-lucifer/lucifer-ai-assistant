@@ -100,7 +100,7 @@ export class Assistant {
                 }
                 toolCallHistory.add(callHash);
 
-                const parsedArgs = this.safeParseArguments(call.function.arguments);
+                const parsedArgs = safeParseArguments(call.function.arguments);
                 if (!parsedArgs) {
                     this.history.push({ role: "tool", tool_call_id: call.id, content: "Error: Invalid JSON arguments. Please retry with strictly valid JSON." });
                     continue;
