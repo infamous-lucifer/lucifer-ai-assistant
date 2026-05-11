@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import { execSync, execFileSync } from 'node:child_process';
 import type { AssistantConfig } from '../core/types.js';
 import { Assistant } from '../core/assistant.js';
