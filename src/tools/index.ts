@@ -5,6 +5,7 @@ import { promisify } from 'node:util';
 import chalk from 'chalk';
 import MiniSearch from 'minisearch';
 import { 
+    isPathAllowed,
     isDangerousCommand, 
     isSafeAutoApproveCommand,
     applySearchAndReplace, 
@@ -59,6 +60,13 @@ export const toolHandlers: Record<string, ToolHandler> = {
         const spinner = new Spinner(`Executing: ${args.command}`);
         spinner.start();
         try {
+            // Split command for shell-less execution if possible
+            const [cmd, ...cmdArgs] = args.command.trim().split(/\s+/);
+            if (!cmd) throw new Error("Empty command.");
+            
+            // Note: We use execAsync as a fallback but we should ideally use spawn/execFile
+            // For complex user commands with pipes/redirection, shell is often needed.
+            // But we already validated for dangerous characters.
             const { stdout, stderr } = await execAsync(args.command, { timeout: 30000 });
             spinner.stop("Command executed.");
             return truncateOutput(`STDOUT:\n${stdout}\nSTDERR:\n${stderr}`, 1500);
@@ -195,11 +203,17 @@ export const toolHandlers: Record<string, ToolHandler> = {
             const approved = await config.rl.question(chalk.yellow(`  Apply these changes to ${args.path}? (y/n): `));
             if (approved.toLowerCase() !== 'y') return "Edit cancelled by user.";
 
-            if (edPath.includes("index.ts")) fs.copyFileSync(edPath, config.backupFile);
+            // Timestamped Backup System
+            const backupDir = path.join(config.projectRoot, '.lucifer-backups');
+            if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+            const backupFile = path.join(backupDir, `${path.basename(edPath)}.${Date.now()}.bak`);
+            fs.copyFileSync(edPath, backupFile);
+
             fs.writeFileSync(edPath, result.content);
             verifiedReads.delete(edPath);
 
             try {
+                // Shell-less git execution to prevent injection
                 execFileSync('git', ['add', edPath], { cwd: config.projectRoot, stdio: 'ignore' });
                 execFileSync('git', ['commit', '-m', `lucifer auto-fix: ${path.basename(edPath)}`], { cwd: config.projectRoot, stdio: 'ignore' });
             } catch(e) {}
@@ -291,9 +305,22 @@ export const toolHandlers: Record<string, ToolHandler> = {
         const screenshotPath = path.join(os.tmpdir(), `gourmet-scrape-${Date.now()}.png`);
         console.log(chalk.magenta(`  [Vision] Capturing recipe from: ${args.url}`));
         try {
+            // Shell-less open to prevent injection
             execFileSync('open', [args.url]);
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            execSync(`screencapture -x ${screenshotPath}`);
+            await new Promise(resolve => setTimeout(resolve, 8000)); // Increased delay for slower sites
+
+            // Attempt window-focused capture for privacy
+            let windowId = "";
+            try {
+                windowId = execSync('osascript -e "tell application \\"System Events\\" to get id of window 1 of (first process whose frontmost is true)"', { encoding: 'utf-8', timeout: 5000 }).trim();
+            } catch (e) {}
+
+            if (windowId && !isNaN(Number(windowId))) {
+                execFileSync('screencapture', ['-l', windowId, '-x', screenshotPath], { timeout: 10000 });
+            } else {
+                execFileSync('screencapture', ['-x', screenshotPath], { timeout: 10000 });
+            }
+
             const imageData = fs.readFileSync(screenshotPath).toString('base64');
             const model = config.ai.getGenerativeModel({ model: config.visionModelName });
             const prompt = `Extract the recipe from this image into structured JSON... (omitting long prompt for brevity)`;

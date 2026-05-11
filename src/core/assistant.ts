@@ -17,8 +17,13 @@ export class Assistant {
     private verifiedReads: Set<string> = new Set<string>();
 
     constructor(private config: AssistantConfig, private manifest: any) {
-        const fileTree = execSync(`find "${config.projectRoot}" -maxdepth 2 -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/dist/*' -type f | head -n 20`, { encoding: 'utf-8', timeout: 10000 })
-            .split('\n').map(f => path.relative(config.projectRoot, f)).filter(Boolean).join(', ');
+        let fileTree = "";
+        try {
+            fileTree = execFileSync('find', [config.projectRoot, '-maxdepth', '2', '-not', '-path', '*/.*', '-not', '-path', '*/node_modules/*', '-not', '-path', '*/dist/*', '-type', 'f'], { encoding: 'utf-8', timeout: 10000 })
+                .split('\n').slice(0, 20).map(f => path.relative(config.projectRoot, f)).filter(Boolean).join(', ');
+        } catch (e) {
+            fileTree = "Error reading project structure.";
+        }
 
         const basePrompt = `You are Lucifer, a pro agentic AI for macOS. 
         ENVIRONMENT: TypeScript/Node.js project.
@@ -57,32 +62,38 @@ export class Assistant {
             const thinking = new Spinner("Lucifer is thinking...");
             thinking.start();
             
-            const stream = await this.config.localAI.chat.completions.create({ 
-                model: this.config.modelName, 
-                messages: this.history as any, 
-                tools: this.manifest.tools, 
-                stream: true 
-            });
-            thinking.stop();
-
             let assistantMsgContent = "";
             let toolCalls: ToolCall[] = [];
 
-            for await (const chunk of stream) {
-                const delta = chunk.choices[0]?.delta;
-                if (delta?.content) {
-                    process.stdout.write(delta.content);
-                    assistantMsgContent += delta.content;
-                }
-                if (delta?.tool_calls) {
-                    for (const toolCallDelta of delta.tool_calls) {
-                        if (toolCallDelta.index === undefined) continue;
-                        if (!toolCalls[toolCallDelta.index]) toolCalls[toolCallDelta.index] = { id: "", type: "function", function: { name: "", arguments: "" } };
-                        if (toolCallDelta.id) toolCalls[toolCallDelta.index].id = toolCallDelta.id;
-                        if (toolCallDelta.function?.name) toolCalls[toolCallDelta.index].function.name += toolCallDelta.function.name;
-                        if (toolCallDelta.function?.arguments) toolCalls[toolCallDelta.index].function.arguments += toolCallDelta.function.arguments;
+            try {
+                const stream = await this.config.localAI.chat.completions.create({ 
+                    model: this.config.modelName, 
+                    messages: this.history as any, 
+                    tools: this.manifest.tools, 
+                    stream: true 
+                });
+                thinking.stop();
+
+                for await (const chunk of stream) {
+                    const delta = chunk.choices[0]?.delta;
+                    if (delta?.content) {
+                        process.stdout.write(delta.content);
+                        assistantMsgContent += delta.content;
+                    }
+                    if (delta?.tool_calls) {
+                        for (const toolCallDelta of delta.tool_calls) {
+                            if (toolCallDelta.index === undefined) continue;
+                            if (!toolCalls[toolCallDelta.index]) toolCalls[toolCallDelta.index] = { id: "", type: "function", function: { name: "", arguments: "" } };
+                            if (toolCallDelta.id) toolCalls[toolCallDelta.index].id = toolCallDelta.id;
+                            if (toolCallDelta.function?.name) toolCalls[toolCallDelta.index].function.name += toolCallDelta.function.name;
+                            if (toolCallDelta.function?.arguments) toolCalls[toolCallDelta.index].function.arguments += toolCallDelta.function.arguments;
+                        }
                     }
                 }
+            } catch (e: any) {
+                thinking.stop("Local AI stream disconnected prematurely.", 'red');
+                this.addSystemContext(`[SYSTEM ERROR] Local AI stream failed: ${e.message}. Partial output: ${assistantMsgContent}`);
+                break; 
             }
             console.log('\n');
             const assistantMsg: Message = { role: 'assistant', content: assistantMsgContent || null };
@@ -117,6 +128,7 @@ export class Assistant {
 
         if (loopCount >= 5) {
             console.log(chalk.red("  [Warning] Maximum autonomous steps reached."));
+            if (!finalResponse) return "Error: Task aborted. Maximum autonomous steps reached without a final answer.";
         }
 
         if (logFile) {
