@@ -70,7 +70,7 @@ export class Assistant {
                 const stream = await this.config.localAI.chat.completions.create({ 
                     model: this.config.modelName, 
                     messages: this.history as any, 
-                    tools: this.manifest.tools, 
+                    tools: this.manifest.tools?.length ? this.manifest.tools : undefined, 
                     stream: true 
                 });
                 thinking.stop();
