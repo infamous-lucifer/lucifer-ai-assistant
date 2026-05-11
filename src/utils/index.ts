@@ -42,7 +42,7 @@ export function applySearchAndReplace(fileText: string, searchString: string, re
     if (!fileText.includes(searchString)) {
         return { ok: false, error: `Error: The exact search string was not found in the file. Make sure you match the indentation and whitespace perfectly.` };
     }
-    const newContent = fileText.replace(searchString, replaceString);
+    const newContent = fileText.replaceAll(searchString, replaceString);
     return { ok: true, content: newContent };
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "lucifer-ai-assistant",
-  "version": "9.2.0",
+  "version": "9.3.0",
   "type": "module",
   "description": "Command-line AI assistant with screen analysis and web search, optimized for Gemini free tier",
   "main": "dist/index.js",

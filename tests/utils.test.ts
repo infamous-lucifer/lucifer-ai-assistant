@@ -7,7 +7,7 @@ import {
     isPathAllowed,
     resolveFilePath,
     isDangerousCommand,
-    applyEditFileRange,
+    applySearchAndReplace,
     pruneHistory,
     getLogsToDelete,
     deps
@@ -197,47 +197,45 @@ describe('isDangerousCommand', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 4. applyEditFileRange
+// 4. applySearchAndReplace
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('applyEditFileRange', () => {
+describe('applySearchAndReplace', () => {
 
-    const fileText = `line 1\nline 2\nline 3\nline 4\nline 5`;
+    const fileText = `const x = 1;\nconsole.log(x);\nconst y = 1;`;
 
     describe('successful replacement', () => {
-        test('replaces a single line', () => {
-            const result = applyEditFileRange(fileText, 2, 2, 'new line 2');
+        test('replaces a single occurrence', () => {
+            const result = applySearchAndReplace(fileText, 'const x = 1;', 'const x = 2;');
             expect(result.ok).toBe(true);
-            if (result.ok) expect(result.content).toBe(`line 1\nnew line 2\nline 3\nline 4\nline 5`);
+            if (result.ok) expect(result.content).toBe(`const x = 2;\nconsole.log(x);\nconst y = 1;`);
         });
 
-        test('replaces multiple lines with one line', () => {
-            const result = applyEditFileRange(fileText, 2, 4, 'new chunk');
+        test('replaces all occurrences (replaceAll)', () => {
+            const result = applySearchAndReplace(fileText, '1', '10');
             expect(result.ok).toBe(true);
-            if (result.ok) expect(result.content).toBe(`line 1\nnew chunk\nline 5`);
+            if (result.ok) expect(result.content).toBe(`const x = 10;\nconsole.log(x);\nconst y = 10;`);
         });
 
-        test('replaces multiple lines with multiple lines', () => {
-            const result = applyEditFileRange(fileText, 2, 3, 'new 2\nnew 3');
+        test('handles multiline blocks', () => {
+            const multiline = `function foo() {\n  return true;\n}`;
+            const search = `  return true;`;
+            const replace = `  return false;`;
+            const result = applySearchAndReplace(multiline, search, replace);
             expect(result.ok).toBe(true);
-            if (result.ok) expect(result.content).toBe(`line 1\nnew 2\nnew 3\nline 4\nline 5`);
+            if (result.ok) expect(result.content).toBe(`function foo() {\n  return false;\n}`);
         });
     });
 
     describe('error cases', () => {
-        test('returns error for invalid range (out of bounds)', () => {
-            const result = applyEditFileRange(fileText, 1, 10, 'error');
+        test('returns error when string is not found', () => {
+            const result = applySearchAndReplace(fileText, 'ghost', 'error');
             expect(result.ok).toBe(false);
-            if (!result.ok) expect(result.error).toContain('Invalid line range');
+            if (!result.ok) expect(result.error).toContain('exact search string was not found');
         });
 
-        test('returns error for invalid range (start > end)', () => {
-            const result = applyEditFileRange(fileText, 5, 2, 'error');
-            expect(result.ok).toBe(false);
-        });
-
-        test('returns error for 0 index', () => {
-            const result = applyEditFileRange(fileText, 0, 1, 'error');
+        test('fails on whitespace mismatch', () => {
+            const result = applySearchAndReplace(fileText, 'const x=1;', 'error');
             expect(result.ok).toBe(false);
         });
     });
@@ -350,14 +348,8 @@ describe('getLogsToDelete', () => {
 // 7. Tool Schema Integrity
 // ═════════════════════════════════════════════════════════════════════════════
 
-// Import the tools array directly to verify schema shape at test time.
-// This catches regressions if someone edits a tool definition and breaks
-// the required field structure.
-
 describe('tools schema', () => {
 
-    // We re-declare the expected shape here so tests don't depend on
-    // importing from the side-effectful index.ts
     const expectedTools = [
         {
             name: 'run_command',
@@ -376,8 +368,8 @@ describe('tools schema', () => {
             requiredParams: ['path'],
         },
         {
-            name: 'edit_file_lines',
-            requiredParams: ['path', 'start_line', 'end_line', 'new_content'],
+            name: 'search_and_replace',
+            requiredParams: ['path', 'search_string', 'replace_string'],
         },
         {
             name: 'propose_fix',
@@ -401,13 +393,9 @@ describe('tools schema', () => {
         },
     ];
 
-    // Validate by constructing equivalent schema objects locally
     test.each(expectedTools)('$name has all required parameters defined', ({ name, requiredParams }) => {
-        // This test documents the contract. If you change a required field
-        // in index.ts, update this list too — the mismatch will surface.
         expect(requiredParams).toBeDefined();
         expect(name).toBeTruthy();
-        // Verify no duplicate required params
         const unique = new Set(requiredParams);
         expect(unique.size).toBe(requiredParams.length);
     });
@@ -420,28 +408,6 @@ describe('tools schema', () => {
         const names = expectedTools.map(t => t.name);
         const unique = new Set(names);
         expect(unique.size).toBe(names.length);
-    });
-
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
-// 8. Integration-style: applyEditFileRange + isPathAllowed together
-// ═════════════════════════════════════════════════════════════════════════════
-
-describe('replace_in_file integration contract', () => {
-
-    test('a path traversal attempt is blocked before file content is ever read', () => {
-        // isPathAllowed must return false for ../../etc/passwd
-        // so applyEditFileRange is never called with that content
-        const maliciousPath = path.resolve(`${PROJECT_ROOT}/../../etc/passwd`);
-        expect(isPathAllowed(maliciousPath, ALLOWED_ROOTS)).toBe(false);
-    });
-
-    test('a valid in-root file + valid range produces a successful edit', () => {
-        const originalContent = 'const version = "4.7";';
-        const result = applyEditFileRange(originalContent, 1, 1, 'const version = "5.3";');
-        expect(result.ok).toBe(true);
-        if (result.ok) expect(result.content).toBe('const version = "5.3";');
     });
 
 });
