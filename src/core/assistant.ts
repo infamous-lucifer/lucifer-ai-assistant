@@ -1,15 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import chalk from 'chalk';
-import { execSync } from 'node:child_process';
-import { AssistantConfig, Message, ToolCall } from './types.js';
+import { execSync, execFileSync } from 'node:child_process';
+import type { AssistantConfig, Message, ToolCall } from './types.js';
 import { 
     truncateOutput, 
     Spinner, 
     pruneHistory,
     safeParseArguments
 } from '../utils/index.js';
-import { ToolHandler, toolHandlers } from '../tools/index.js';
+import { toolHandlers } from '../tools/index.js';
+import type { ToolHandler } from '../tools/index.js';
 
 export class Assistant {
     private history: Message[] = [];
@@ -83,12 +84,14 @@ export class Assistant {
                     if (delta?.tool_calls) {
                         for (const toolCallDelta of delta.tool_calls) {
                             if (toolCallDelta.index === undefined) continue;
-                            if (!toolCalls[toolCallDelta.index]) toolCalls[toolCallDelta.index] = { id: "", type: "function", function: { name: "", arguments: "" } };
-                            if (toolCallDelta.id) toolCalls[toolCallDelta.index].id = toolCallDelta.id;
-                            if (toolCallDelta.function?.name) toolCalls[toolCallDelta.index].function.name += toolCallDelta.function.name;
-                            if (toolCallDelta.function?.arguments) toolCalls[toolCallDelta.index].function.arguments += toolCallDelta.function.arguments;
-                        }
-                    }
+                            const idx = toolCallDelta.index;
+                            if (!toolCalls[idx]) {
+                                toolCalls[idx] = { id: "", type: "function", function: { name: "", arguments: "" } };
+                            }
+                            if (toolCallDelta.id) toolCalls[idx].id = toolCallDelta.id;
+                            if (toolCallDelta.function?.name) toolCalls[idx].function.name += toolCallDelta.function.name;
+                            if (toolCallDelta.function?.arguments) toolCalls[idx].function.arguments += toolCallDelta.function.arguments;
+                        }                    }
                 }
             } catch (e: any) {
                 thinking.stop("Local AI stream disconnected prematurely.", 'red');

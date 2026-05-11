@@ -12,7 +12,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 
 import { getLogsToDelete } from './src/utils/index.js';
-import { AssistantConfig } from './src/core/types.js';
+import type { AssistantConfig } from './src/core/types.js';
 import { syncDependencies, runStatusCheck } from './src/setup.js';
 import { RecipeStorage } from './src/storage/recipe.storage.js';
 import { handleOneShot } from './src/cli/parser.js';
@@ -72,15 +72,15 @@ async function initialize() {
     await syncDependencies(config, manifest);
     if (!apiKey) {
         apiKey = await rl.question(chalk.green('Enter your Gemini API Key: '));
-        if (apiKey) fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`);
+        if (apiKey) fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`, { mode: 0o600 });
     }
     config.ai = new GoogleGenAI({ apiKey: apiKey!.trim() });
     try {
         const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
-        const status = execSync(`${lmsPath} status`, { encoding: 'utf-8', timeout: 5000 });
+        const status = execFileSync(lmsPath, ['status'], { encoding: 'utf-8', timeout: 5000 });
         if (status.includes('Server: OFF')) {
             console.log(chalk.yellow("Starting LM Studio daemon..."));
-            execSync(`${lmsPath} daemon up`, { timeout: 30000 });
+            execFileSync(lmsPath, ['daemon', 'up'], { timeout: 30000 });
         }
     } catch (e: any) {
         console.log(chalk.gray(`Note: LM Studio daemon status check failed: ${e.message}`));

@@ -67,10 +67,13 @@ export class RecipeStorage {
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+    const len = Math.min(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+      const valA = a[i] ?? 0;
+      const valB = b[i] ?? 0;
+      dotProduct += valA * valB;
+      normA += valA * valA;
+      normB += valB * valB;
     }
     if (normA === 0 || normB === 0) return 0;
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
@@ -269,7 +272,60 @@ export class RecipeStorage {
 
   private deserializeRecipe(content: string): Recipe {
     const lines = content.split('\n');
-    const title = lines[0]?.replace('# ', '').trim() || 'Untitled';
-    return { title, ingredients: [], instructions: [], tags: [] } as any; 
+    const recipe: any = {
+      title: lines[0]?.replace('# ', '').trim() || 'Untitled',
+      tags: [],
+      ingredients: [],
+      instructions: [],
+      metadata: {}
+    };
+
+    let currentSection = '';
+    for (let i = 1; i < lines.length; i++) {
+      const rawLine = lines[i];
+      if (rawLine === undefined) continue;
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      if (line.startsWith('## ')) {
+        currentSection = line.replace('## ', '').toLowerCase();
+        continue;
+      }
+
+      if (currentSection === 'tags') {
+        recipe.tags = line.split(',').map(t => t.trim()).filter(Boolean);
+      } else if (currentSection === 'ingredients' && line.startsWith('- ')) {
+        const ingredientContent = line.replace('- ', '').trim();
+        const notesMatch = ingredientContent.match(/\((.*)\)/);
+        const notes = notesMatch ? notesMatch[1] : undefined;
+        const mainPart = ingredientContent.replace(/\(.*\)/, '').trim();
+        
+        const parts = mainPart.split(/\s+/);
+        const firstPart = parts[0];
+        if (firstPart && parts.length >= 3 && /^[\d\/\.]+$/.test(firstPart)) {
+          recipe.ingredients.push({ amount: firstPart, unit: parts[1], item: parts.slice(2).join(' '), notes });
+        } else if (firstPart && parts.length >= 2 && /^[\d\/\.]+$/.test(firstPart)) {
+          recipe.ingredients.push({ amount: firstPart, item: parts.slice(1).join(' '), notes });
+        } else {
+          recipe.ingredients.push({ item: mainPart, notes });
+        }
+      } else if (currentSection === 'instructions' && /^\d+\./.test(line)) {
+        recipe.instructions.push(line.replace(/^\d+\.\s+/, ''));
+      } else if (currentSection === 'metadata' && line.startsWith('- ')) {
+        const [key, ...valParts] = line.replace('- ', '').split(':');
+        if (key) {
+          const value = valParts.join(':').trim();
+          const k = key.trim().toLowerCase();
+          if (k.includes('prep')) recipe.metadata.prepTime = value;
+          if (k.includes('cook')) recipe.metadata.cookTime = value;
+          if (k.includes('servings')) recipe.metadata.servings = parseInt(value);
+          if (k.includes('source')) recipe.metadata.sourceUrl = value;
+        }
+      } else if (!currentSection && i < 10 && !line.startsWith('#')) {
+        recipe.description = (recipe.description || '') + line + ' ';
+      }
+    }
+    if (recipe.description) recipe.description = recipe.description.trim();
+    return recipe as Recipe;
   }
 }

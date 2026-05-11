@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import chalk from 'chalk';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import MiniSearch from 'minisearch';
-import { AssistantConfig } from './core/types.js';
+import type { AssistantConfig } from './core/types.js';
+import https from 'node:https';
 
 export async function syncDependencies(config: AssistantConfig, manifest: any) {
     const deps = manifest.dependencies || [];
@@ -15,7 +16,27 @@ export async function syncDependencies(config: AssistantConfig, manifest: any) {
             const tmpPath = `${binaryPath}.tmp`;
             try {
                 if (!fs.existsSync(path.dirname(binaryPath))) fs.mkdirSync(path.dirname(binaryPath), { recursive: true });
-                execSync(`curl -sL ${dep.source} -o ${tmpPath} && chmod +x ${tmpPath}`, { timeout: 60000 });
+                
+                // Use native Node.js for downloading instead of shell curl
+                await new Promise((resolve, reject) => {
+                    const file = fs.createWriteStream(tmpPath);
+                    https.get(dep.source, (response) => {
+                        if (response.statusCode !== 200) {
+                            reject(new Error(`Failed to download: ${response.statusCode}`));
+                            return;
+                        }
+                        response.pipe(file);
+                        file.on('finish', () => {
+                            file.close();
+                            resolve(true);
+                        });
+                    }).on('error', (err) => {
+                        fs.unlink(tmpPath, () => {});
+                        reject(err);
+                    });
+                });
+
+                fs.chmodSync(tmpPath, 0o755);
                 
                 if (dep.sha256) {
                     const content = fs.readFileSync(tmpPath);
@@ -42,7 +63,9 @@ export async function buildIndex(config: AssistantConfig) {
         storeFields: ['path']
     });
 
-    const files = execSync(`find "${config.projectRoot}" -maxdepth 3 -not -path '*/.*' -not -path '*/node_modules/*' -not -path '*/dist/*' -type f`, { encoding: 'utf-8', timeout: 30000 }).split('\n').filter(Boolean);
+    // Use execFileSync to prevent shell injection via PROJECT_ROOT
+    const args = [config.projectRoot, '-maxdepth', '3', '-not', '-path', '*/.*', '-not', '-path', '*/node_modules/*', '-not', '-path', '*/dist/*', '-type', 'f'];
+    const files = execFileSync('find', args, { encoding: 'utf-8', timeout: 30000 }).split('\n').filter(Boolean);
     
     const documents = files.map((f, i) => {
         try {

@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { exec, execFileSync } from 'node:child_process';
+import { exec, execFileSync, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import chalk from 'chalk';
 import MiniSearch from 'minisearch';
@@ -8,12 +8,13 @@ import {
     isPathAllowed,
     isDangerousCommand, 
     isSafeAutoApproveCommand,
+    resolveFilePath,
     applySearchAndReplace, 
     showVisualDiff, 
     truncateOutput, 
     Spinner 
 } from '../utils/index.js';
-import { 
+import type { 
     AssistantConfig, 
     RunCommandArgs, 
     ReadFileArgs, 
@@ -35,6 +36,7 @@ import { GourmetUI } from './gourmet.ui.js';
 import os from 'node:os';
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export type ToolHandler = (config: AssistantConfig, args: any, verifiedReads: Set<string>) => Promise<string>;
 
@@ -312,7 +314,7 @@ export const toolHandlers: Record<string, ToolHandler> = {
             // Attempt window-focused capture for privacy
             let windowId = "";
             try {
-                windowId = execSync('osascript -e "tell application \\"System Events\\" to get id of window 1 of (first process whose frontmost is true)"', { encoding: 'utf-8', timeout: 5000 }).trim();
+                windowId = execFileSync('osascript', ['-e', 'tell application "System Events" to get id of window 1 of (first process whose frontmost is true)'], { encoding: 'utf-8', timeout: 5000 }).trim();
             } catch (e) {}
 
             if (windowId && !isNaN(Number(windowId))) {
@@ -322,11 +324,18 @@ export const toolHandlers: Record<string, ToolHandler> = {
             }
 
             const imageData = fs.readFileSync(screenshotPath).toString('base64');
-            const model = config.ai.getGenerativeModel({ model: config.visionModelName });
-            const prompt = `Extract the recipe from this image into structured JSON... (omitting long prompt for brevity)`;
-            const result = await model.generateContent([prompt, { inlineData: { mimeType: "image/png", data: imageData } }]);
-            const response = await result.response;
-            const jsonText = response.text().replace(/```json|```/g, '').trim();
+            const prompt = `Extract the recipe from this image into structured JSON format. Include title, ingredients, instructions, and metadata.`;
+            const result = await config.ai.models.generateContent({
+                model: config.visionModelName,
+                contents: [{
+                    role: 'user',
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: "image/png", data: imageData } }
+                    ]
+                }]
+            });
+            const jsonText = (result.text || "").replace(/```json|```/g, '').trim();
             const recipeData = JSON.parse(jsonText);
             recipeData.metadata = recipeData.metadata || {};
             recipeData.metadata.sourceUrl = args.url;

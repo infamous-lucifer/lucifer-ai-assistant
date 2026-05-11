@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync, execFileSync } from 'node:child_process';
-import { AssistantConfig } from '../core/types.js';
+import type { AssistantConfig } from '../core/types.js';
 import { Assistant } from '../core/assistant.js';
 import { 
     truncateOutput, 
@@ -25,7 +25,7 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
     if (isEvolving) {
         console.log(chalk.magenta("  [Evolution] Running deterministic health checks..."));
         let outdatedData = "";
-        try { outdatedData = execSync('npm outdated --json', { encoding: 'utf-8', timeout: 30000 }); } catch (e: any) { outdatedData = e.stdout?.toString() || "{}"; }
+        try { outdatedData = execFileSync('npm', ['outdated', '--json'], { encoding: 'utf-8', timeout: 30000 }); } catch (e: any) { outdatedData = e.stdout?.toString() || "{}"; }
         const outdatedJson = JSON.parse(outdatedData || "{}");
         const packages = Object.keys(outdatedJson);
         if (packages.length === 0) {
@@ -59,7 +59,12 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
             if (query.startsWith('!search')) {
                 const q = query.replace('!search', '').trim();
                 if (!q) continue;
-                const result = await toolHandlers["search_web"](config, { query: q }, new Set());
+                const handler = toolHandlers["search_web"];
+                if (!handler) {
+                    console.log(chalk.red("Error: Search tool not found."));
+                    continue;
+                }
+                const result = await handler(config, { query: q }, new Set());
                 console.log(`\n${chalk.white(result)}\n`);
                 assistant.addSystemContext(`User executed '!search ${q}'. Result:\n${truncateOutput(result, 1000)}`);
                 continue;
@@ -86,8 +91,10 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
             }
 
             if (query.startsWith('!clip')) {
-                const clipboardContent = execSync('pbpaste', { encoding: 'utf-8', timeout: 5000 });
-                assistant.addSystemContext(`User executed '!clip'. CLIPBOARD CONTENT:\n<untrusted_clipboard_content>\n${clipboardContent}\n</untrusted_clipboard_content>`);
+                const clipboardContent = execFileSync('pbpaste', [], { encoding: 'utf-8', timeout: 5000 });
+                // Sanitize to prevent escaping the XML boundary
+                const safeContent = clipboardContent.replace(/<\/untrusted_clipboard_content>/g, '');
+                assistant.addSystemContext(`User executed '!clip'. CLIPBOARD CONTENT:\n<untrusted_clipboard_content>\n${safeContent}\n</untrusted_clipboard_content>`);
                 continue;
             }
 

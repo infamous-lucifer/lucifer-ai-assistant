@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { AssistantConfig } from '../core/types.js';
+import type { AssistantConfig } from '../core/types.js';
 import { highlightMarkdown, Spinner } from '../utils/index.js';
 import { toolHandlers } from '../tools/index.js';
 import { stdin } from 'node:process';
@@ -49,7 +49,9 @@ export async function handleOneShot(config: AssistantConfig, args: string[]) {
 
     if (searchQuery) {
         console.log(chalk.blue(`  [Search] Researching: ${searchQuery}...`));
-        const result = await toolHandlers["search_web"](config, { query: searchQuery }, new Set());
+        const handler = toolHandlers["search_web"];
+        if (!handler) throw new Error("Search tool not found.");
+        const result = await handler(config, { query: searchQuery }, new Set());
         console.log(`\n${highlightMarkdown(result)}\n`);
         return;
     }
@@ -75,7 +77,9 @@ export async function handleOneShot(config: AssistantConfig, args: string[]) {
 
         if (isCommandMode) {
             const command = rawOutput.trim().replace(/^`+|`+$/g, '');
-            const approved = await config.rl.question(chalk.yellow(`  Execute this command? (y/n/explain): `));
+            // Highlight shell operators to warn about chaining
+            const warnedCommand = command.replace(/([&|;><$`\n])/g, chalk.red('$1'));
+            const approved = await config.rl.question(chalk.yellow(`  Execute this command? (y/n/explain): \n  > ${warnedCommand}\n  `));
             if (approved.toLowerCase() === 'y') {
                 const { stdout, stderr } = await execAsync(command);
                 if (stdout) console.log(chalk.gray(stdout));

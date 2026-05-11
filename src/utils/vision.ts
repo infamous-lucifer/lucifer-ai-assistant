@@ -1,13 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { execSync } from 'node:child_process';
-import { AssistantConfig } from '../core/types.js';
+import { execSync, execFileSync } from 'node:child_process';
+import type { AssistantConfig } from '../core/types.js';
 import { highlightMarkdown } from './index.js';
+import crypto from 'node:crypto';
+import chalk from 'chalk';
 
 export async function seeScreen(config: AssistantConfig, query: string): Promise<string> {
     if (!config.ai) return "Error: Gemini AI not initialized.";
-    const screenshotPath = path.join(os.tmpdir(), `lucifer-screen-${Date.now()}.png`);
+    const randomSuffix = crypto.randomBytes(8).toString('hex');
+    const screenshotPath = path.join(os.tmpdir(), `lucifer-screen-${randomSuffix}.png`);
     try {
         console.log(chalk.gray("  [Vision] Capturing frontmost window..."));
         // Attempt to get the window ID of the frontmost application
@@ -25,18 +28,19 @@ export async function seeScreen(config: AssistantConfig, query: string): Promise
         }
 
         const imageData = fs.readFileSync(screenshotPath).toString('base64');
-        const model = config.ai.getGenerativeModel({ model: config.visionModelName });
-        const result = await model.generateContent([
-            query || "What is on my screen?",
-            {
-                inlineData: {
-                    mimeType: "image/png",
-                    data: imageData
+        const result = await config.ai.models.generateContent({
+            model: config.visionModelName,
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        { text: query || "What is on my screen?" },
+                        { inlineData: { mimeType: "image/png", data: imageData } }
+                    ]
                 }
-            }
-        ]);
-        const response = await result.response;
-        return response.text() || "No analysis generated.";
+            ]
+        });
+        return result.text || "No analysis generated.";
     } catch (e: any) {
         return `Vision Error: ${e.message}`;
     } finally {
