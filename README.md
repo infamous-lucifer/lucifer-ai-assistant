@@ -1,26 +1,25 @@
-# 👹 Lucifer AI: The Hybrid Utility Engine (v9.2)
+# 👹 Lucifer AI: Hardened Edition (v9.3)
 
-**Lucifer** is a professional, high-performance AI utility designed for macOS power users and developers. Optimized for Apple Silicon (M5), it serves as a specialized **CLI wrapper** that connects your terminal to a private local model (Qwen 2.5) for text/coding tasks and Gemini 2.0 for vision.
+**Lucifer** is a security-hardened, agentic AI developer partner for macOS, optimized for local execution on M-series chips. It serves as a specialized **CLI wrapper** that connects your terminal to a private local model (Qwen 2.5) for text/coding tasks and Gemini 2.0 for vision.
 
-Unlike mass-market cloud agents, Lucifer follows the **UNIX Philosophy**: "Write programs that do one thing and do it well." It is built for developers who prioritize **100% privacy** and deterministic execution over autonomous black-box reasoning.
+Unlike mass-market cloud agents, Lucifer follows the **UNIX Philosophy**: "Write programs that do one thing and do it well." It is built for developers who prioritize **100% privacy**, deterministic execution, and industrial-grade security.
 
-## 🎯 Core Philosophy
-- **Deterministic Utility:** No autonomous wandering. Lucifer acts as a surgical power tool, ensuring predictable results and human-in-the-loop safety.
-- **Privacy First:** All code reasoning happens locally on your Mac via LM Studio. No code is ever sent to the cloud.
-- **Text Stream Optimized:** Built to live in your shell pipelines (`stdin` ➔ `stdout`).
+## 🛡 Security First Architecture
+
+Lucifer v9.3 introduces a "Deterministic Security" model that protects your system from AI hallucinations and malicious injections:
+
+- **Command Injection Protection**: All native tool calls (like `tldr`) use `execFileSync` with argument arrays, bypassing the shell and neutralizing metacharacter attacks.
+- **Hardened Auto-Approval**: The auto-approval engine for `run_command` now uses an anchored, strict-regex validator. It automatically blocks shell chaining (`&&`, `;`), redirection (`>`, `>>`), and command substitution (`$()`, `` ` ``) from unprompted execution.
+- **Atomic File Operations**: The `search_and_replace` tool now enforces string uniqueness. If a search snippet appears more than once in a file, the operation is blocked to prevent accidental destructive overwrites.
+- **Type-Safe Core**: Replaced loose `any` types with strict `Message` and `ToolCall` interfaces, ensuring structural integrity of the AI-to-System communication pipe.
 
 ## 🚀 Key Features
+
 - **Local Brain:** Qwen 2.5 Coder 7B (via LM Studio) for infinite, zero-cost, offline coding assistance.
 - **Vision Brain:** Gemini 2.0 Flash for high-accuracy screen and UI analysis.
-- **UNIX Pipeline:** Support for native piping (`cat logs.txt | lucifer`) and one-shot execution.
-- **Command Suggest:** Generate and optionally execute shell commands with a secure `y/n/explain` loop.
-- **Industrial Hardening:** Features OOM-safe indexing, context window protection, and a mandatory "Read-Before-Write" security lock.
-
-## ⚠️ Limitations & Scope
-Lucifer is a **high-precision utility**, not a general-purpose AGI. 
-- **Optimized for 7B Models:** Best used with Qwen 2.5 Coder 7B or similar. Larger tasks should be broken down into surgical steps.
-- **Context Constraints:** Operates under a local memory ceiling (~4000 tokens). Large data should be piped or read via line numbers.
-- **Requires LM Studio:** You must be comfortable managing a local inference server for the best experience.
+- **Modular Core**: Decoupled architecture with discrete CLI handlers (`parser.ts` for one-shot, `repl.ts` for interactive).
+- **Resilient AI Parsing**: Built-in fault-tolerant JSON parsing that automatically repairs common LLM hallucinations like trailing commas or markdown wrapping.
+- **Guided Auto-Repair**: Use `!fix <issue>` for an autonomous Search -> Read -> Edit pipeline.
 
 ## 🏃 Getting Started
 
@@ -36,13 +35,21 @@ cd lucifer-ai-assistant
 npm install && npm run build && npm link
 ```
 
-## 📈 Version History (Milestones)
-| Version | Milestone | The Result |
-| :--- | :--- | :--- |
-| **v1.0** | API Wrapper | Initial cloud-based prototype. |
-| **v4.6** | Security Pivot | Added sandboxing and mandatory human approval. |
-| **v7.1** | Industrial Core | Solved logic loops via deterministic guards. |
-| **v9.2** | Honest Reality | Current stable release. Optimized as a professional CLI wrapper. |
+## 🛠 Usage
+
+```bash
+# Interactive Mode
+lucifer
+
+# One-Shot Command
+lucifer "How do I list listening ports on macOS?"
+
+# Security-Hardened Command Generation
+lucifer -c "Create a new git branch called feature/security"
+
+# Vision Mode
+lucifer --vision "What is in my browser window?"
+```
 
 ---
 *Created with 🖤 for the M5 MacBook Air. Built for developers who value control.*

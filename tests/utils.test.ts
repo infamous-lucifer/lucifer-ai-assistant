@@ -8,6 +8,8 @@ import {
     resolveFilePath,
     isDangerousCommand,
     applySearchAndReplace,
+    isSafeAutoApproveCommand,
+    safeParseArguments,
     pruneHistory,
     getLogsToDelete,
     deps
@@ -197,6 +199,59 @@ describe('isDangerousCommand', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
+// 3.1 isSafeAutoApproveCommand
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('isSafeAutoApproveCommand', () => {
+    test('allows pure safe commands', () => {
+        expect(isSafeAutoApproveCommand('ls')).toBe(true);
+        expect(isSafeAutoApproveCommand('cat file.ts')).toBe(true);
+        expect(isSafeAutoApproveCommand('pwd')).toBe(true);
+        expect(isSafeAutoApproveCommand('git status')).toBe(true);
+    });
+
+    test('blocks shell chaining', () => {
+        expect(isSafeAutoApproveCommand('ls && cat /etc/passwd')).toBe(false);
+        expect(isSafeAutoApproveCommand('cat file.ts; rm -rf /')).toBe(false);
+        expect(isSafeAutoApproveCommand('pwd | pbcopy')).toBe(false);
+    });
+
+    test('blocks redirection', () => {
+        expect(isSafeAutoApproveCommand('ls > output.txt')).toBe(false);
+        expect(isSafeAutoApproveCommand('cat file.ts >> dangerous.sh')).toBe(false);
+    });
+
+    test('blocks command substitution', () => {
+        expect(isSafeAutoApproveCommand('cat $(whoami)')).toBe(false);
+        expect(isSafeAutoApproveCommand('ls `rm -rf /`')).toBe(false);
+    });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 3.2 safeParseArguments
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('safeParseArguments', () => {
+    test('parses valid JSON', () => {
+        expect(safeParseArguments('{"foo": "bar"}')).toEqual({foo: "bar"});
+    });
+
+    test('strips markdown code blocks', () => {
+        expect(safeParseArguments('```json\n{"foo": "bar"}\n```')).toEqual({foo: "bar"});
+        expect(safeParseArguments('```\n{"foo": "bar"}\n```')).toEqual({foo: "bar"});
+    });
+
+    test('repairs trailing commas', () => {
+        expect(safeParseArguments('{"foo": "bar",}')).toEqual({foo: "bar"});
+        expect(safeParseArguments('{"list": [1, 2, 3,],}')).toEqual({list: [1, 2, 3]});
+    });
+
+    test('returns null for truly broken JSON', () => {
+        expect(safeParseArguments('{"foo": "bar"')).toBeNull();
+    });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
 // 4. applySearchAndReplace
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -211,19 +266,19 @@ describe('applySearchAndReplace', () => {
             if (result.ok) expect(result.content).toBe(`const x = 2;\nconsole.log(x);\nconst y = 1;`);
         });
 
-        test('replaces all occurrences (replaceAll)', () => {
+        test('fails if search string is not unique', () => {
             const result = applySearchAndReplace(fileText, '1', '10');
-            expect(result.ok).toBe(true);
-            if (result.ok) expect(result.content).toBe(`const x = 10;\nconsole.log(x);\nconst y = 10;`);
+            expect(result.ok).toBe(false);
+            if (!result.ok) expect(result.error).toContain('Search string is NOT unique');
         });
 
-        test('handles multiline blocks', () => {
-            const multiline = `function foo() {\n  return true;\n}`;
+        test('handles unique multiline blocks', () => {
+            const multiline = `function foo() {\n  return true;\n}\nfunction bar() {\n  return false;\n}`;
             const search = `  return true;`;
-            const replace = `  return false;`;
+            const replace = `  return "fixed";`;
             const result = applySearchAndReplace(multiline, search, replace);
             expect(result.ok).toBe(true);
-            if (result.ok) expect(result.content).toBe(`function foo() {\n  return false;\n}`);
+            if (result.ok) expect(result.content).toBe(`function foo() {\n  return "fixed";\n}\nfunction bar() {\n  return false;\n}`);
         });
     });
 

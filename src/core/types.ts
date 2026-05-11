@@ -3,6 +3,24 @@ import OpenAI from "openai";
 import * as readline from 'node:readline/promises';
 import { RecipeStorage } from '../storage/recipe.storage.js';
 
+export type Role = "user" | "assistant" | "system" | "tool";
+
+export interface ToolCall {
+    id: string;
+    type: "function";
+    function: {
+        name: string;
+        arguments: string;
+    };
+}
+
+export interface Message {
+    role: Role;
+    content: string | null;
+    tool_calls?: ToolCall[];
+    tool_call_id?: string;
+}
+
 export interface RunCommandArgs { command: string; }
 export interface ReadFileArgs { path: string; start_line?: number; end_line?: number; }
 export interface SearchAndReplaceArgs { path: string; search_string: string; replace_string: string; }

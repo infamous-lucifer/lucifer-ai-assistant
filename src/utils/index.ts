@@ -38,11 +38,37 @@ export function isDangerousCommand(command: string, dangerPatterns: (string | Re
     });
 }
 
+export function isSafeAutoApproveCommand(command: string): boolean {
+    const hasDangerousChars = /[&|;><$`\n]/.test(command);
+    const safeCommandRegex = /^(ls|cat\s+[^&|;><$`\n]+|pwd|git status|git diff|git log|uptime|vm_stat|sysctl|netstat|ioreg)$/;
+    return !hasDangerousChars && safeCommandRegex.test(command.trim());
+}
+
+export function safeParseArguments(rawArgs: string): any {
+    try {
+        return JSON.parse(rawArgs);
+    } catch {
+        // Fault-tolerant parsing for local AI hallucinations
+        let cleaned = rawArgs.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Repair common JSON errors like trailing commas
+        cleaned = cleaned.replace(/,\s*([\]}])/g, '$1');
+        try {
+            return JSON.parse(cleaned);
+        } catch {
+            return null;
+        }
+    }
+}
+
 export function applySearchAndReplace(fileText: string, searchString: string, replaceString: string): { ok: true, content: string } | { ok: false, error: string } {
-    if (!fileText.includes(searchString)) {
+    const occurrences = fileText.split(searchString).length - 1;
+    if (occurrences === 0) {
         return { ok: false, error: `Error: The exact search string was not found in the file. Make sure you match the indentation and whitespace perfectly.` };
     }
-    const newContent = fileText.replaceAll(searchString, replaceString);
+    if (occurrences > 1) {
+        return { ok: false, error: `Error: Search string is NOT unique. Found ${occurrences} occurrences. Please provide more surrounding context to make the search string unique.` };
+    }
+    const newContent = fileText.replace(searchString, replaceString);
     return { ok: true, content: newContent };
 }
 

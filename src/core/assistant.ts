@@ -1,19 +1,18 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import chalk from 'chalk';
-import { execSync, execFileSync } from 'node:child_process';
-import os from 'node:os';
-import { AssistantConfig } from './types.js';
+import { execSync } from 'node:child_process';
+import { AssistantConfig, Message, ToolCall } from './types.js';
 import { 
     truncateOutput, 
     Spinner, 
-    pruneHistory, 
-    highlightMarkdown 
+    pruneHistory,
+    safeParseArguments
 } from '../utils/index.js';
 import { ToolHandler, toolHandlers } from '../tools/index.js';
 
 export class Assistant {
-    private history: any[] = [];
+    private history: Message[] = [];
     private toolsUsed: string[] = [];
     private verifiedReads: Set<string> = new Set<string>();
 
@@ -67,7 +66,7 @@ export class Assistant {
             thinking.stop();
 
             let assistantMsgContent = "";
-            let toolCalls: any[] = [];
+            let toolCalls: ToolCall[] = [];
 
             for await (const chunk of stream) {
                 const delta = chunk.choices[0]?.delta;
@@ -78,7 +77,7 @@ export class Assistant {
                 if (delta?.tool_calls) {
                     for (const toolCallDelta of delta.tool_calls) {
                         if (toolCallDelta.index === undefined) continue;
-                        if (!toolCalls[toolCallDelta.index]) toolCalls[toolCallDelta.index] = { id: toolCallDelta.id, type: "function", function: { name: "", arguments: "" } };
+                        if (!toolCalls[toolCallDelta.index]) toolCalls[toolCallDelta.index] = { id: "", type: "function", function: { name: "", arguments: "" } };
                         if (toolCallDelta.id) toolCalls[toolCallDelta.index].id = toolCallDelta.id;
                         if (toolCallDelta.function?.name) toolCalls[toolCallDelta.index].function.name += toolCallDelta.function.name;
                         if (toolCallDelta.function?.arguments) toolCalls[toolCallDelta.index].function.arguments += toolCallDelta.function.arguments;
@@ -86,16 +85,14 @@ export class Assistant {
                 }
             }
             console.log('\n');
-            const assistantMsg: any = { role: 'assistant', content: assistantMsgContent };
-            if (toolCalls.length > 0) assistantMsg.tool_calls = toolCalls;
+            const assistantMsg: Message = { role: 'assistant', content: assistantMsgContent || null };
+            if (toolCalls.length > 0) assistantMsg.tool_calls = toolCalls.filter(tc => tc.id);
 
             this.history.push(assistantMsg);
             if (assistantMsgContent) finalResponse = assistantMsgContent;
-            if (!assistantMsg.tool_calls) break;
+            if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) break;
 
-            const validToolCalls = assistantMsg.tool_calls.filter(Boolean);
-
-            for (const call of validToolCalls) {
+            for (const call of assistantMsg.tool_calls) {
                 const callHash = `${call.function.name}:${call.function.arguments}`;
                 if (toolCallHistory.has(callHash)) {
                     this.history.push({ role: "tool", tool_call_id: call.id, content: "ERROR: Duplicate call. Change arguments or approach." });
@@ -103,11 +100,9 @@ export class Assistant {
                 }
                 toolCallHistory.add(callHash);
 
-                let parsedArgs: unknown;
-                try {
-                    parsedArgs = JSON.parse(call.function.arguments);
-                } catch {
-                    this.history.push({ role: "tool", tool_call_id: call.id, content: "Error: Invalid JSON arguments." });
+                const parsedArgs = this.safeParseArguments(call.function.arguments);
+                if (!parsedArgs) {
+                    this.history.push({ role: "tool", tool_call_id: call.id, content: "Error: Invalid JSON arguments. Please retry with strictly valid JSON." });
                     continue;
                 }
                 const toolResult = await this.executeTool(call.function.name, parsedArgs);

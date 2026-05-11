@@ -1,7 +1,12 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { exec, execFileSync } from 'node:child_process';
+import { promisify } from 'node:util';
+import chalk from 'chalk';
+import MiniSearch from 'minisearch';
 import { 
-    isPathAllowed, 
-    resolveFilePath, 
     isDangerousCommand, 
+    isSafeAutoApproveCommand,
     applySearchAndReplace, 
     showVisualDiff, 
     truncateOutput, 
@@ -41,9 +46,8 @@ export const toolHandlers: Record<string, ToolHandler> = {
             return "Error: Blocked by danger patterns.";
         }
         
-        const safeCommandRegex = /^(ls|cat|pwd|git status|git diff|git log|uptime|vm_stat|sysctl|netstat|ioreg)\b/;
         let approved = 'y';
-        if (!safeCommandRegex.test(args.command)) {
+        if (!isSafeAutoApproveCommand(args.command)) {
             console.log(chalk.red(`\n  [APPROVE?] ${args.command}`));
             approved = await config.rl.question(chalk.yellow(`  Type 'y' to execute: `));
         } else {
@@ -123,7 +127,8 @@ export const toolHandlers: Record<string, ToolHandler> = {
         console.log(chalk.yellow(`  [Action] Fetching cheat sheet for: ${args.command}...`));
         try {
             const tldrPath = path.join(config.runtimesPath, "bin/tldr");
-            return execSync(`${tldrPath} -p osx "${args.command}"`, { encoding: 'utf-8', timeout: 15000 });
+            // Use execFileSync to prevent command injection via shell metacharacters
+            return execFileSync(tldrPath, ['-p', 'osx', args.command], { encoding: 'utf-8', timeout: 15000 });
         } catch (e: any) {
             return `Cheat Sheet Error: ${e.message}. Ensure 'tldr' is synchronized in your runtimes folder.`;
         }
