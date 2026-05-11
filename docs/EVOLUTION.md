@@ -43,6 +43,7 @@ This document tracks the journey of Lucifer from a basic chat interface to an in
 - **The Concept:** A complete architectural reboot to eliminate the "God Object" and "Security Nightmare" critiques.
 - **The Delivery:**
     - **Domain Decoupling:** Successfully separated Storage, Tools, Core Assistant, and Setup logic into isolated modules within the `src/` directory.
+    - **Unified Capabilities:** Consolidated specialized **Gourmet** recipe management features (Semantic RAG, Zod validation, Git-backed MD storage) into the core assistant.
     - **Dynamic Registry:** Implemented a tool registry that dynamically links manifest definitions to modular handlers.
     - **Security Hardening:** Tightened the 'read-before-write' lock (per-turn reset), fixed TOCTOU race conditions in dependency sync, and added strict timeouts to all shell executions.
     - **Reliability Fix:** Corrected the `search_and_replace` logic to perform global replacements (`replaceAll`), ensuring consistent codebase edits.
