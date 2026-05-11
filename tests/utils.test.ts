@@ -11,7 +11,7 @@ import {
     pruneHistory,
     getLogsToDelete,
     deps
-} from '../utils.js';
+} from '../src/utils/index.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
