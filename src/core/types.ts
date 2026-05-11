@@ -51,4 +51,6 @@ export interface AssistantConfig {
     allowedRoots: string[];
     dangerPatterns: (string | RegExp)[];
     recipeStorage?: RecipeStorage;
+    modelName: string;
+    visionModelName: string;
 }

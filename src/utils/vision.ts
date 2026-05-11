@@ -11,7 +11,7 @@ export async function seeScreen(config: AssistantConfig, query: string): Promise
     try {
         execSync(`screencapture -x ${screenshotPath}`, { timeout: 10000 });
         const imageData = fs.readFileSync(screenshotPath).toString('base64');
-        const model = config.ai.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = config.ai.getGenerativeModel({ model: config.visionModelName });
         const result = await model.generateContent([
             query || "What is on my screen?",
             {

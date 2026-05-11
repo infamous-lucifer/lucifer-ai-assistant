@@ -58,7 +58,7 @@ export class Assistant {
             thinking.start();
             
             const stream = await this.config.localAI.chat.completions.create({ 
-                model: "qwen2.5-coder-7b-instruct-mlx", 
+                model: this.config.modelName, 
                 messages: this.history as any, 
                 tools: this.manifest.tools, 
                 stream: true 

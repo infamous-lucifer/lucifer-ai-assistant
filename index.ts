@@ -61,7 +61,9 @@ const config: AssistantConfig = {
     backupFile: BACKUP_FILE,
     allowedRoots: [PROJECT_ROOT, RUNTIMES_PATH],
     dangerPatterns: manifest.dangerPatterns || [],
-    recipeStorage
+    recipeStorage,
+    modelName: process.env.LUCIFER_MODEL || "qwen2.5-coder-7b-instruct-mlx",
+    visionModelName: process.env.LUCIFER_VISION_MODEL || "gemini-2.0-flash"
 };
 
 const args = process.argv.slice(2);
@@ -77,9 +79,12 @@ async function initialize() {
         const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
         const status = execSync(`${lmsPath} status`, { encoding: 'utf-8', timeout: 5000 });
         if (status.includes('Server: OFF')) {
-            execSync(`${lmsPath} daemon up`, { timeout: 10000 });
+            console.log(chalk.yellow("Starting LM Studio daemon..."));
+            execSync(`${lmsPath} daemon up`, { timeout: 30000 });
         }
-    } catch (e: any) {}
+    } catch (e: any) {
+        console.log(chalk.gray(`Note: LM Studio daemon status check failed: ${e.message}`));
+    }
     config.localAI = new OpenAI({ baseURL: "http://localhost:1234/v1", apiKey: "lm-studio", timeout: 60000 });
 }
 

@@ -63,7 +63,7 @@ export async function handleOneShot(config: AssistantConfig, args: string[]) {
     try {
         if (!config.localAI) throw new Error("Local AI not initialized.");
         const response = await config.localAI.chat.completions.create({
-            model: "qwen2.5-coder-7b-instruct-mlx",
+            model: config.modelName,
             messages: [{ role: "user", content: fullPrompt }],
             stream: false
         });
@@ -82,7 +82,7 @@ export async function handleOneShot(config: AssistantConfig, args: string[]) {
                 if (stderr) console.error(chalk.red(stderr));
             } else if (approved.toLowerCase() === 'e' || approved.toLowerCase() === 'explain') {
                 const explanation = await config.localAI.chat.completions.create({
-                    model: "qwen2.5-coder-7b-instruct-mlx",
+                    model: config.modelName,
                     messages: [{ role: "user", content: `Explain exactly what this macOS command does: ${command}` }]
                 });
                 console.log(`\n${highlightMarkdown(explanation.choices[0]?.message?.content || "")}\n`);

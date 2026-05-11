@@ -8,13 +8,14 @@ Unlike mass-market cloud agents, Lucifer follows the **UNIX Philosophy**: "Write
 
 Lucifer v9.3 introduces a "Deterministic Security" model that protects your system from AI hallucinations and malicious injections:
 
-- **Command Injection Protection**: All native tool calls (like `tldr`) use `execFileSync` with argument arrays, bypassing the shell and neutralizing metacharacter attacks.
-- **Hardened Auto-Approval**: The auto-approval engine for `run_command` now uses an anchored, strict-regex validator. It automatically blocks shell chaining (`&&`, `;`), redirection (`>`, `>>`), and command substitution (`$()`, `` ` ``) from unprompted execution.
+- **Command Injection Protection**: All native tool calls (like `tldr` and `git`) use `execFileSync` with argument arrays, bypassing the shell and neutralizing metacharacter attacks.
+- **Hardened Command Execution**: User-requested shell commands (`run_command`) are executed via a shell but are protected by a two-tier validator: a strict metacharacter blacklist and an anchored, allow-list regex.
 - **Atomic File Operations**: The `search_and_replace` tool now enforces string uniqueness. If a search snippet appears more than once in a file, the operation is blocked to prevent accidental destructive overwrites.
 - **Type-Safe Core**: Replaced loose `any` types with strict `Message` and `ToolCall` interfaces, ensuring structural integrity of the AI-to-System communication pipe.
 
 ## 🚀 Key Features
 
+- **Flexible Configuration**: Choose your local and vision models via environment variables (`LUCIFER_MODEL`, `LUCIFER_VISION_MODEL`).
 - **Local Brain:** Qwen 2.5 Coder 7B (via LM Studio) for infinite, zero-cost, offline coding assistance.
 - **Vision Brain:** Gemini 2.0 Flash for high-accuracy screen and UI analysis.
 - **Modular Core**: Decoupled architecture with discrete CLI handlers (`parser.ts` for one-shot, `repl.ts` for interactive).
@@ -26,7 +27,7 @@ Lucifer v9.3 introduces a "Deterministic Security" model that protects your syst
 ### Prerequisites
 1. **LM Studio:** [Download here](https://lmstudio.ai). Required for 100% private, zero-cost local reasoning.
 2. **Model:** Load `qwen2.5-coder-7b-instruct-mlx`.
-3. **Environment:** A Gemini API key (in `~/.lucifer-env`) for Vision capabilities.
+3. **Environment:** A Gemini API key (in `~/.lucifer-env`) for Vision capabilities. You can optionally set `LUCIFER_MODEL` and `LUCIFER_VISION_MODEL`.
 
 ### Installation
 ```bash
@@ -50,6 +51,9 @@ lucifer -c "Create a new git branch called feature/security"
 # Vision Mode
 lucifer --vision "What is in my browser window?"
 ```
+
+## 🛡 Vision Privacy Notice
+The Vision tool currently uses `screencapture -x`, which captures all active displays. Ensure no sensitive information is visible on your screens when using vision-based features. Future updates will focus on focused window capture.
 
 ---
 *Created with 🖤 for the M5 MacBook Air. Built for developers who value control.*

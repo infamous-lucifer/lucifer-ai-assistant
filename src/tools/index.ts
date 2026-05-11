@@ -200,7 +200,8 @@ export const toolHandlers: Record<string, ToolHandler> = {
             verifiedReads.delete(edPath);
 
             try {
-                execSync(`git add "${edPath}" && git commit -m "lucifer auto-fix: ${path.basename(edPath)}"`, { cwd: config.projectRoot, stdio: 'ignore' });
+                execFileSync('git', ['add', edPath], { cwd: config.projectRoot, stdio: 'ignore' });
+                execFileSync('git', ['commit', '-m', `lucifer auto-fix: ${path.basename(edPath)}`], { cwd: config.projectRoot, stdio: 'ignore' });
             } catch(e) {}
 
             console.log(chalk.yellow(`  [Action] Verifying changes...`));
@@ -294,7 +295,7 @@ export const toolHandlers: Record<string, ToolHandler> = {
             await new Promise(resolve => setTimeout(resolve, 5000));
             execSync(`screencapture -x ${screenshotPath}`);
             const imageData = fs.readFileSync(screenshotPath).toString('base64');
-            const model = config.ai.getGenerativeModel({ model: "gemini-2.0-flash" });
+            const model = config.ai.getGenerativeModel({ model: config.visionModelName });
             const prompt = `Extract the recipe from this image into structured JSON... (omitting long prompt for brevity)`;
             const result = await model.generateContent([prompt, { inlineData: { mimeType: "image/png", data: imageData } }]);
             const response = await result.response;
