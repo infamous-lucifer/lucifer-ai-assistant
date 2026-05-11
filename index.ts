@@ -44,7 +44,7 @@ const execAsync = promisify(exec);
 
 // --- Configuration & Manifest ---
 const MANIFEST_PATH = path.join(PROJECT_ROOT, 'lucifer-manifest.json');
-let manifest: any = { version: "7.1", dependencies: [], dangerPatterns: [], tools: [] };
+let manifest: any = { version: "9.2", dependencies: [], dangerPatterns: [], tools: [] };
 try {
     if (fs.existsSync(MANIFEST_PATH)) {
         manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf-8'));
