@@ -12,6 +12,8 @@ Lucifer v9.3 introduces a "Deterministic Security" model that protects your syst
 - **Hardened Command Execution**: User-requested shell commands (`run_command`) are executed via a shell but are protected by a two-tier validator: a strict metacharacter blacklist and an anchored, allow-list regex.
 - **Atomic File Operations**: The `search_and_replace` tool now enforces string uniqueness. If a search snippet appears more than once in a file, the operation is blocked to prevent accidental destructive overwrites.
 - **Type-Safe Core**: Replaced loose `any` types with strict `Message` and `ToolCall` interfaces, ensuring structural integrity of the AI-to-System communication pipe.
+- **Tool-Call Deduplication**: Prevents non-deterministic loop spamming by normalizing tool arguments (key sorting + whitespace stripping) before hashing.
+- **Vision Privacy Protection**: The vision tool now defaults to capturing only the frontmost window (`screencapture -l`) to protect personal notifications and background display data.
 
 ## 🚀 Key Features
 
@@ -53,7 +55,7 @@ lucifer --vision "What is in my browser window?"
 ```
 
 ## 🛡 Vision Privacy Notice
-The Vision tool currently uses `screencapture -x`, which captures all active displays. Ensure no sensitive information is visible on your screens when using vision-based features. Future updates will focus on focused window capture.
+Lucifer v9.3 prioritizes privacy by attempting to capture only the frontmost active window. This minimizes the risk of sending background notifications or desktop icons to the AI. If window identification fails, it will fall back to a standard capture with a warning.
 
 ---
 *Created with 🖤 for the M5 MacBook Air. Built for developers who value control.*

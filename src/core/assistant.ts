@@ -93,18 +93,22 @@ export class Assistant {
             if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) break;
 
             for (const call of assistantMsg.tool_calls) {
-                const callHash = `${call.function.name}:${call.function.arguments}`;
-                if (toolCallHistory.has(callHash)) {
-                    this.history.push({ role: "tool", tool_call_id: call.id, content: "ERROR: Duplicate call. Change arguments or approach." });
-                    continue;
-                }
-                toolCallHistory.add(callHash);
-
                 const parsedArgs = safeParseArguments(call.function.arguments);
                 if (!parsedArgs) {
                     this.history.push({ role: "tool", tool_call_id: call.id, content: "Error: Invalid JSON arguments. Please retry with strictly valid JSON." });
                     continue;
                 }
+
+                // Normalize arguments to prevent variation-based loop spamming
+                const normalizedArgs = JSON.stringify(parsedArgs, Object.keys(parsedArgs).sort());
+                const callHash = `${call.function.name}:${normalizedArgs}`;
+                
+                if (toolCallHistory.has(callHash)) {
+                    this.history.push({ role: "tool", tool_call_id: call.id, content: "ERROR: Duplicate call detected. You have already tried this exact action. Rethink your strategy or check for a different root cause." });
+                    continue;
+                }
+                toolCallHistory.add(callHash);
+
                 const toolResult = await this.executeTool(call.function.name, parsedArgs);
                 this.history.push({ role: "tool", tool_call_id: call.id, content: String(toolResult) });
             }
