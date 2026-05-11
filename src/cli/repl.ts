@@ -11,10 +11,14 @@ import {
 import { toolHandlers } from '../tools/index.js';
 import { seeScreen } from '../utils/vision.js';
 
+import { syncDependencies, runStatusCheck, buildIndex } from '../setup.js';
+import { RecipeStorage } from '../storage/recipe.storage.js';
+
 export async function startRepl(config: AssistantConfig, manifest: any, isEvolving: boolean, logsDir: string) {
     const assistant = new Assistant(config, manifest);
     const SESSION_ID = new Date().toISOString().replace(/[:.]/g, '-');
     const LOG_FILE = path.join(logsDir, `session-${SESSION_ID}.md`);
+    const CONFIG_FILE = path.join(os.homedir(), '.lucifer-env');
     fs.writeFileSync(LOG_FILE, `# Lucifer Session — ${new Date().toLocaleString()}\n\n**Mode:** ${isEvolving ? 'Evolution' : 'Normal'}\n\n---\n\n`);
 
     console.log('\n' + chalk.cyan('─'.repeat(50)) + '\n');
@@ -42,6 +46,71 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
             if (!query.trim()) continue;
 
             // Handle special commands (!fix, !search, etc.)
+            if (query === '!report') {
+                process.stdout.write(chalk.blue("Generating Deep System Report...\n"));
+                const handler = toolHandlers["get_deep_system_report"];
+                const result = await handler(config, {}, new Set());
+                console.log(`\n${chalk.white(result)}\n`);
+                assistant.addSystemContext(`User executed '!report'. Result:\n${truncateOutput(result, 1000)}`);
+                continue;
+            }
+
+            if (query === '!test') {
+                console.log(chalk.blue("Running project test suite...\n"));
+                try {
+                    const result = execSync('npm test', { encoding: 'utf-8', cwd: config.projectRoot });
+                    console.log(result);
+                    assistant.addSystemContext(`User executed '!test'. Result:\n${result}`);
+                } catch (e: any) {
+                    console.log(e.stdout?.toString() || e.message);
+                    assistant.addSystemContext(`User executed '!test'. Result: FAILED\n${e.stdout?.toString()}`);
+                }
+                continue;
+            }
+
+            if (query === '!status') {
+                await runStatusCheck(config, CONFIG_FILE);
+                continue;
+            }
+
+            if (query === '!lms') {
+                const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
+                console.log(chalk.blue("Checking LM Studio Status...\n"));
+                try {
+                    const status = execFileSync(lmsPath, ['status'], { encoding: 'utf-8', timeout: 5000 });
+                    console.log(status);
+                    assistant.addSystemContext(`User executed '!lms'. Status:\n${status}`);
+                } catch (e: any) {
+                    console.log(chalk.red("Error running lms command."));
+                }
+                continue;
+            }
+
+            if (query.startsWith('!tldr')) {
+                const cmdName = query.replace('!tldr', '').trim();
+                if (!cmdName) continue;
+                process.stdout.write(chalk.blue(`Fetching cheat sheet for: ${cmdName}...\n`));
+                const handler = toolHandlers["get_command_help"];
+                const result = await handler(config, { command: cmdName }, new Set());
+                console.log(`\n${chalk.white(result)}\n`);
+                assistant.addSystemContext(`User executed '!tldr ${cmdName}'. Cheat sheet:\n${result}`);
+                continue;
+            }
+
+            if (query === '!recipes') {
+                const handler = toolHandlers["list_recipes"];
+                await handler(config, {}, new Set());
+                continue;
+            }
+
+            if (query.startsWith('!recipe')) {
+                const title = query.replace('!recipe', '').trim();
+                if (!title) continue;
+                const handler = toolHandlers["read_recipe"];
+                await handler(config, { title }, new Set());
+                continue;
+            }
+
             if (query.startsWith('!fix')) {
                 const issue = query.replace('!fix', '').trim();
                 if (!issue) continue;

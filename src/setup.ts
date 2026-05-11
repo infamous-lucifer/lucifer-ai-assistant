@@ -107,3 +107,37 @@ export async function runStatusCheck(config: AssistantConfig, configFile: string
     console.log(fs.existsSync(config.runtimesPath) ? chalk.green(`✔ Runtimes folder found`) : chalk.yellow(`⚠ Runtimes folder missing`));
     console.log('');
 }
+
+export function installDaemon(config: AssistantConfig) {
+    const plistPath = path.join(os.homedir(), 'Library/LaunchAgents/com.lucifer.assistant.plist');
+    const luciferBin = execSync('which lucifer', { encoding: 'utf-8' }).trim();
+    
+    const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lucifer.assistant</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${luciferBin}</string>
+        <string>--status</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardErrorPath</key>
+    <string>${path.join(config.logsDir, 'daemon.err.log')}</string>
+    <key>StandardOutPath</key>
+    <string>${path.join(config.logsDir, 'daemon.out.log')}</string>
+</dict>
+</plist>`;
+
+    try {
+        if (!fs.existsSync(path.dirname(plistPath))) fs.mkdirSync(path.dirname(plistPath), { recursive: true });
+        fs.writeFileSync(plistPath, plistContent);
+        execSync(`launchctl load ${plistPath}`);
+        console.log(chalk.green(`✔ Daemon installed and loaded: ${plistPath}`));
+    } catch (e: any) {
+        console.log(chalk.red(`✘ Failed to install daemon: ${e.message}`));
+    }
+}

@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 
 import { getLogsToDelete } from './src/utils/index.js';
 import type { AssistantConfig } from './src/core/types.js';
-import { syncDependencies, runStatusCheck } from './src/setup.js';
+import { syncDependencies, runStatusCheck, buildIndex, installDaemon } from './src/setup.js';
 import { RecipeStorage } from './src/storage/recipe.storage.js';
 import { handleOneShot } from './src/cli/parser.js';
 import { startRepl } from './src/cli/repl.js';
@@ -90,10 +90,83 @@ async function initialize() {
 
 async function main() {
     if (args.includes('--help') || args.includes('-h')) {
-        console.log(chalk.cyan("Lucifer v9.3 Hardened Edition. See README.md for details."));
+        console.log(chalk.cyan(`
+=== LUCIFER v9.3 (HARDENED EDITION) — Quick Reference ===
+
+STARTUP / ONE-SHOT
+  lucifer "query"      One-shot answer and exit
+  cat file | lucifer   Pipe data to Lucifer for analysis
+  lucifer -c "query"   Generate and optionally execute a command
+  lucifer --json       Force output in structured JSON
+  lucifer --vision     Analyze screen and exit
+  lucifer --search     Web search and exit
+
+INTERACTIVE MODE
+  lucifer              Start interactive agent session
+  lucifer --evolve     Start in system evolution mode (health check + audit)
+  lucifer --index      Build/Update local codebase search index
+  lucifer --status     Check system health
+  lucifer --setup      First-time setup wizard
+  lucifer --last       Open most recent session log
+  lucifer --rollback   Restore last stable version
+  lucifer --install-daemon  Install auto-start background service
+  lucifer --help       Show this message
+
+IN-SESSION COMMANDS
+  !fix <issue>         Autonomous auto-repair (Searches, Reads, and Fixes)
+  !search <query>      Direct web research (DuckDuckGo via Node Fetch)
+  !tldr <command>      Get quick command cheat sheets (Native Fetch)
+  !report              Instant deep system diagnostics
+  !read <path>         Quickly inspect a file (auto-pipes to less if large)
+  !test                Run project test suite (npm test)
+  !status              Check Lucifer environment health
+  !lms                 Check LM Studio server status
+  !screen [query]      Analyze your screen with Gemini Vision
+  !clip [query]        Analyze clipboard content
+  !recipes             List all saved gourmet recipes
+  !recipe <title>      Read a specific recipe
+  exit / quit          End session
+
+CAPABILITIES
+  - Proactive tool use (shell, grep, read, replace)
+  - Security-hardened command execution
+  - Decoupled Hybrid Architecture (Local Reasoning + Cloud Vision)
+`));
         process.exit(0);
     }
     if (args.includes('--status')) { await runStatusCheck(config, CONFIG_FILE); process.exit(0); }
+    if (args.includes('--install-daemon')) { installDaemon(config); process.exit(0); }
+    if (args.includes('--index')) { await initialize(); await buildIndex(config); process.exit(0); }
+    if (args.includes('--setup')) { 
+        apiKey = await rl.question(chalk.green('Enter your Gemini API Key: '));
+        if (apiKey) fs.writeFileSync(CONFIG_FILE, `API_KEY=${apiKey.trim()}\n`, { mode: 0o600 });
+        console.log(chalk.green("Setup complete."));
+        process.exit(0);
+    }
+    if (args.includes('--rollback')) {
+        if (fs.existsSync(BACKUP_FILE)) {
+            fs.copyFileSync(BACKUP_FILE, path.join(PROJECT_ROOT, "index.ts"));
+            console.log(chalk.green("Rollback successful. Restored index.ts from backup."));
+        } else {
+            console.log(chalk.red("No backup found."));
+        }
+        process.exit(0);
+    }
+    if (args.includes('--last')) {
+        if (!fs.existsSync(LOGS_DIR)) {
+            console.log(chalk.red("No logs found."));
+            process.exit(0);
+        }
+        const logs = fs.readdirSync(LOGS_DIR).filter(f => f.endsWith('.md')).sort();
+        if (logs.length === 0) {
+            console.log(chalk.red("No logs found."));
+            process.exit(0);
+        }
+        const lastLog = path.join(LOGS_DIR, logs[logs.length - 1]);
+        console.log(chalk.cyan(`Opening last log: ${lastLog}`));
+        execFileSync('open', [lastLog]);
+        process.exit(0);
+    }
 
     await initialize();
 
