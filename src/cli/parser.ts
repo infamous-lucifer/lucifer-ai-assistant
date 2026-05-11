@@ -7,6 +7,7 @@ import type { AssistantConfig } from '../core/types.js';
 import { highlightMarkdown, Spinner } from '../utils/index.js';
 import { toolHandlers } from '../tools/index.js';
 import { stdin } from 'node:process';
+import process from 'node:process';
 import { seeScreen } from '../utils/vision.js';
 
 const execAsync = promisify(exec);

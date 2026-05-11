@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import process from 'node:process';
 import chalk from 'chalk';
 import { execSync, execFileSync } from 'node:child_process';
 import type { AssistantConfig, Message, ToolCall } from './types.js';

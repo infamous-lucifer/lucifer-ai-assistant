@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import process from 'node:process';
 import { execSync, execFileSync } from 'node:child_process';
 import type { AssistantConfig } from '../core/types.js';
 import { Assistant } from '../core/assistant.js';
@@ -38,6 +39,7 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
             return;
         }
         assistant.addSystemContext(`System Audit Complete. The following dependencies are outdated: ${packages.join(', ')}. Use 'propose_fix' to write a REVIEW_REQUEST.md.`);
+        await assistant.chat("Please analyze the outdated dependencies and propose a fix.", LOG_FILE);
     }
 
     while (true) {
@@ -52,7 +54,7 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
                 const handler = toolHandlers["get_deep_system_report"];
                 const result = await handler(config, {}, new Set());
                 console.log(`\n${chalk.white(result)}\n`);
-                assistant.addSystemContext(`User executed '!report'. Result:\n${truncateOutput(result, 1000)}`);
+                await assistant.chat(`User executed '!report'. Result was displayed. You may now comment on system health if necessary.`, LOG_FILE);
                 continue;
             }
 
@@ -61,10 +63,11 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
                 try {
                     const result = execSync('npm test', { encoding: 'utf-8', cwd: config.projectRoot });
                     console.log(result);
-                    assistant.addSystemContext(`User executed '!test'. Result:\n${result}`);
+                    await assistant.chat(`User executed '!test'. Result:\n${result}`, LOG_FILE);
                 } catch (e: any) {
-                    console.log(e.stdout?.toString() || e.message);
-                    assistant.addSystemContext(`User executed '!test'. Result: FAILED\n${e.stdout?.toString()}`);
+                    const error = e.stdout?.toString() || e.message;
+                    console.log(error);
+                    await assistant.chat(`User executed '!test'. Result: FAILED\n${error}`, LOG_FILE);
                 }
                 continue;
             }
@@ -94,7 +97,7 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
                 const handler = toolHandlers["get_command_help"];
                 const result = await handler(config, { command: cmdName }, new Set());
                 console.log(`\n${chalk.white(result)}\n`);
-                assistant.addSystemContext(`User executed '!tldr ${cmdName}'. Cheat sheet:\n${result}`);
+                await assistant.chat(`User executed '!tldr ${cmdName}'. Cheat sheet was displayed.`, LOG_FILE);
                 continue;
             }
 
@@ -122,7 +125,7 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
                 for (const file of topFiles.slice(0, 2)) {
                     context += `\n--- FILE: ${file} ---\n${await assistant.executeTool("read_file", { path: file })}\n`;
                 }
-                assistant.addSystemContext(`[GUIDED FIX MODE]\nISSUE: ${issue}\nCONTEXT:${context}\n\nTASK: Output ONLY the 'search_and_replace' JSON payload.`);
+                await assistant.chat(`[GUIDED FIX MODE]\nISSUE: ${issue}\nCONTEXT:${context}\n\nTASK: Output ONLY the 'search_and_replace' JSON payload.`, LOG_FILE);
                 continue;
             }
 
@@ -136,7 +139,7 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
                 }
                 const result = await handler(config, { query: q }, new Set());
                 console.log(`\n${chalk.white(result)}\n`);
-                assistant.addSystemContext(`User executed '!search ${q}'. Result:\n${truncateOutput(result, 1000)}`);
+                await assistant.chat(`User executed '!search ${q}'. Result:\n${truncateOutput(result, 1000)}`, LOG_FILE);
                 continue;
             }
 
@@ -148,23 +151,24 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
                     const content = fs.readFileSync(rPath, 'utf-8');
                     if (content.split('\n').length > 100) execFileSync('less', [], { input: content, stdio: ['pipe', 'inherit', 'inherit'] });
                     else console.log(`\n${chalk.white(content)}\n`);
-                    assistant.addSystemContext(`User executed '!read ${p}'.`);
+                    await assistant.chat(`User executed '!read ${p}'. File content has been displayed to the user.`, LOG_FILE);
                 } catch (e: any) { console.log(chalk.red(`Error: ${e.message}`)); }
                 continue;
             }
 
             if (query.startsWith('!screen')) {
-                const result = await seeScreen(config, query.replace('!screen', '').trim());
+                const q = query.replace('!screen', '').trim();
+                const result = await seeScreen(config, q);
                 console.log(`\n${chalk.white(result)}\n`);
-                assistant.addSystemContext(`User executed '!screen'. Analysis:\n${result}`);
+                await assistant.chat(`User executed '!screen ${q}'. Analysis:\n${result}`, LOG_FILE);
                 continue;
             }
 
             if (query.startsWith('!clip')) {
+                const q = query.replace('!clip', '').trim();
                 const clipboardContent = execFileSync('pbpaste', [], { encoding: 'utf-8', timeout: 5000 });
-                // Sanitize to prevent escaping the XML boundary
                 const safeContent = clipboardContent.replace(/<\/untrusted_clipboard_content>/g, '');
-                assistant.addSystemContext(`User executed '!clip'. CLIPBOARD CONTENT:\n<untrusted_clipboard_content>\n${safeContent}\n</untrusted_clipboard_content>`);
+                await assistant.chat(`${q || 'Analyze clipboard'}:\n\n<untrusted_clipboard_content>\n${safeContent}\n</untrusted_clipboard_content>`, LOG_FILE);
                 continue;
             }
 

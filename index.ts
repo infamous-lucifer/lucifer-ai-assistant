@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import * as readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
+import process from 'node:process';
 import { execSync, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
