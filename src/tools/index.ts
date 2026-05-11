@@ -244,15 +244,57 @@ export const toolHandlers: Record<string, ToolHandler> = {
         return `Review request written to REVIEW_REQUEST.md.`;
     },
     "get_deep_system_report": async (config) => {
-        console.log(chalk.yellow(`  [Action] Compiling deep system report...`));
-        const [uptime, batteryRaw, mem, cpu, net] = await Promise.all([
-            execAsync('uptime').then(r => r.stdout.trim()),
-            execAsync('ioreg -r -c IOPMPowerSource').then(r => r.stdout.split('\n').filter(l => l.includes('Capacity') || l.includes('Voltage') || l.includes('CycleCount')).join('\n').trim()),
-            execAsync('vm_stat').then(r => r.stdout.trim()),
-            execAsync('sysctl hw.physicalcpu hw.logicalcpu').then(r => r.stdout.trim()),
-            execAsync('netstat -i | head -n 5').then(r => r.stdout.trim())
-        ]);
-        return `📊 **Deep System Report**\n\n**Uptime:** ${uptime}\n\n**CPU:**\n${cpu}\n\n**Memory:**\n${mem}\n\n**Battery Deep Stats:**\n${batteryRaw}\n\n**Network (Top interfaces):**\n${net}`;
+        console.log(chalk.yellow(`  [Action] Compiling human-readable hardware report...`));
+        try {
+            const [hw, storage, battery, uptime] = await Promise.all([
+                execAsync('system_profiler SPHardwareDataType').then(r => r.stdout),
+                execAsync('system_profiler SPStorageDataType').then(r => r.stdout),
+                execAsync('system_profiler SPBatteryDataType').then(r => r.stdout),
+                execAsync('uptime').then(r => r.stdout.trim())
+            ]);
+
+            // Helper to extract values from system_profiler output
+            const getVal = (blob: string, key: string) => {
+                const reg = new RegExp(`${key}:\\s+(.*)`, 'i');
+                const match = blob.match(reg);
+                return match ? match[1].trim() : "Unknown";
+            };
+
+            const chip = getVal(hw, "Chip");
+            const cores = getVal(hw, "Total Number of Cores");
+            const memory = getVal(hw, "Memory");
+            
+            const freeStorage = getVal(storage, "Free").split('(')[0].trim();
+            const totalStorage = getVal(storage, "Capacity").split('(')[0].trim();
+            const smartStatus = getVal(storage, "S.M.A.R.T. Status");
+
+            const batteryCycle = getVal(battery, "Cycle Count");
+            const batteryCondition = getVal(battery, "Condition");
+            const batteryCharge = getVal(battery, "Fully Charged") === "Yes" ? "100%" : getVal(battery, "State of Charge");
+
+            return `
+🍎 **SILICON & CORE INFO**
+- **Processor:** ${chip}
+- **Cores:** ${cores}
+- **Uptime:** ${uptime}
+
+🧠 **MEMORY & PERFORMANCE**
+- **Total RAM:** ${memory}
+- **Architecture:** Apple Silicon (ARM64)
+
+💾 **STORAGE HEALTH**
+- **SSD Capacity:** ${totalStorage}
+- **Available Space:** ${freeStorage}
+- **S.M.A.R.T. Status:** ${smartStatus === 'Verified' ? '✅ Verified' : '⚠️ ' + smartStatus}
+
+🔋 **POWER & BATTERY**
+- **Current Charge:** ${batteryCharge}
+- **Cycle Count:** ${batteryCycle}
+- **Health Condition:** ${batteryCondition === 'Normal' ? '✅ Normal' : '⚠️ ' + batteryCondition}
+`.trim();
+        } catch (e: any) {
+            return `System Report Error: ${e.message}. Fallback to basic: ${execSync('uptime').toString()}`;
+        }
     },
     // --- Gourmet Tool Handlers ---
     "add_recipe": async (config, rawArgs) => {
