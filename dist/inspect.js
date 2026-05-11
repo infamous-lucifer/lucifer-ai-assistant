@@ -1,8 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'node:path';
+import os from 'node:os';
+const CONFIG_FILE = path.join(os.homedir(), '.lucifer-env');
+dotenv.config({ path: CONFIG_FILE });
 const apiKey = process.env.API_KEY;
 if (!apiKey) {
-    throw new Error("API_KEY environment variable is required. Check the .env file in the project folder.");
+    throw new Error(`API_KEY missing in ${CONFIG_FILE}. Run "lucifer --setup" first.`);
 }
 const ai = new GoogleGenAI({ apiKey });
 async function listMyModels() {

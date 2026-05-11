@@ -1,22 +1,6 @@
 {
     "version": "9.2",
-    "dependencies": [
-
-        {
-            "name": "ddgr",
-            "binary": "bin/ddgr",
-            "source": "https://raw.githubusercontent.com/jarun/ddgr/master/ddgr",
-            "sha256": "b26a6d9dbb7260ddd555e8f13e216cd5c3843301ef671be5478caa975060847a",
-            "description": "DuckDuckGo CLI for web search"
-        },
-        {
-            "name": "tldr",
-            "binary": "bin/tldr",
-            "source": "https://raw.githubusercontent.com/raylee/tldr/master/tldr",
-            "sha256": "fe1ce2fe8c9c88f0f991b19179ce5e66c013fa299f33cbc974c566d0033e52a8",
-            "description": "Simplified community-driven man pages (Cheat sheets)"
-        }
-    ],
+    "dependencies": [],
     "dangerPatterns": [
         "rm\\s+-rf?\\s+[~\\/]",
         "curl[^|]*\\|.*sh",
@@ -89,17 +73,16 @@
         {
             "type": "function",
             "function": {
-                "name": "edit_file_lines",
-                "description": "Replaces a specific range of lines in a file with new content. Replaces the block from start_line to end_line inclusive.",
+                "name": "search_and_replace",
+                "description": "Surgically replace exact text blocks in a file.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "path": { "type": "string" },
-                        "start_line": { "type": "number" },
-                        "end_line": { "type": "number" },
-                        "new_content": { "type": "string", "description": "The exact new code to insert" }
+                        "search_string": { "type": "string", "description": "The exact literal text to replace." },
+                        "replace_string": { "type": "string", "description": "The exact literal text to insert." }
                     },
-                    "required": ["path", "start_line", "end_line", "new_content"]
+                    "required": ["path", "search_string", "replace_string"]
                 }
             }
         },

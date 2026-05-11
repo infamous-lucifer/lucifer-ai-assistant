@@ -9,7 +9,7 @@ export declare const deps: {
 export declare function isPathAllowed(filePath: string, allowedRoots: string[]): boolean;
 export declare function resolveFilePath(filePath: string, allowedRoots: string[]): string;
 export declare function isDangerousCommand(command: string, dangerPatterns: (string | RegExp)[]): boolean;
-export declare function applyEditFileRange(fileText: string, startLine: number, endLine: number, newCode: string): {
+export declare function applySearchAndReplace(fileText: string, searchString: string, replaceString: string): {
     ok: true;
     content: string;
 } | {
@@ -30,3 +30,4 @@ export declare class Spinner {
 }
 export declare function pruneHistory(history: any[], maxLength: number): any[];
 export declare function getLogsToDelete(logs: string[], maxLogs: number): string[];
+//# sourceMappingURL=utils.d.ts.map
