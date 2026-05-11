@@ -46,6 +46,7 @@ This document tracks the journey of Lucifer from a basic chat interface to an in
     - **Strict Validation:** Integrated **Zod** for runtime schema validation of all AI inputs.
     - **Transactional Safety:** Implemented **Git-backed storage** for automatic commits and total rollback capability.
     - **M5 Optimization:** Specifically tuned for the MacBook Air M5 unified memory architecture.
+    - **Vision-First Ingestion:** Integrated Gemini 2.0 Flash for zero-effort web scraping and visual recipe parsing.
 
 ---
 
