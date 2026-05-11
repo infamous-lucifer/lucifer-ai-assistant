@@ -1,9 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import chalk from 'chalk';
-import { execSync, execFileSync, exec } from 'node:child_process';
-import { promisify } from 'node:util';
-import MiniSearch from 'minisearch';
 import { 
     isPathAllowed, 
     resolveFilePath, 
@@ -13,13 +7,33 @@ import {
     truncateOutput, 
     Spinner 
 } from '../utils/index.js';
-import { AssistantConfig, RunCommandArgs, ReadFileArgs, SearchAndReplaceArgs, ProposeFixArgs, SearchWebArgs, SemanticSearchArgs, ListFilesArgs, GetCommandHelpArgs, ControlMacosArgs, SearchCodebaseArgs } from '../core/types.js';
+import { 
+    AssistantConfig, 
+    RunCommandArgs, 
+    ReadFileArgs, 
+    SearchAndReplaceArgs, 
+    ProposeFixArgs, 
+    SearchWebArgs, 
+    SemanticSearchArgs, 
+    ListFilesArgs, 
+    GetCommandHelpArgs, 
+    ControlMacosArgs, 
+    SearchCodebaseArgs,
+    AddRecipeArgs,
+    ReadRecipeArgs,
+    SearchRecipesArgs,
+    DeleteRecipeArgs,
+    ImportRecipeArgs
+} from '../core/types.js';
+import { GourmetUI } from './gourmet.ui.js';
+import os from 'node:os';
 
 const execAsync = promisify(exec);
 
 export type ToolHandler = (config: AssistantConfig, args: any, verifiedReads: Set<string>) => Promise<string>;
 
 export const toolHandlers: Record<string, ToolHandler> = {
+    // ... Existing handlers ...
     "run_command": async (config, rawArgs, verifiedReads) => {
         const args = rawArgs as Partial<RunCommandArgs>;
         if (typeof args.command !== 'string') return "Error: Missing required field 'command'.";
@@ -217,5 +231,75 @@ export const toolHandlers: Record<string, ToolHandler> = {
             execAsync('netstat -i | head -n 5').then(r => r.stdout.trim())
         ]);
         return `📊 **Deep System Report**\n\n**Uptime:** ${uptime}\n\n**CPU:**\n${cpu}\n\n**Memory:**\n${mem}\n\n**Battery Deep Stats:**\n${batteryRaw}\n\n**Network (Top interfaces):**\n${net}`;
+    },
+    // --- Gourmet Tool Handlers ---
+    "add_recipe": async (config, rawArgs) => {
+        if (!config.recipeStorage) return "Error: Recipe storage not initialized.";
+        const args = rawArgs as AddRecipeArgs;
+        try {
+            const path = await config.recipeStorage.saveRecipe(args.recipe);
+            return `Recipe '${args.recipe.title}' saved successfully to ${path}`;
+        } catch (e: any) { return `Error adding recipe: ${e.message}`; }
+    },
+    "list_recipes": async (config) => {
+        if (!config.recipeStorage) return "Error: Recipe storage not initialized.";
+        try {
+            const recipes = await config.recipeStorage.listRecipes();
+            console.log(GourmetUI.formatList(recipes));
+            return "Success: Recipes list has been displayed.";
+        } catch (e: any) { return `Error listing recipes: ${e.message}`; }
+    },
+    "read_recipe": async (config, rawArgs) => {
+        if (!config.recipeStorage) return "Error: Recipe storage not initialized.";
+        const args = rawArgs as ReadRecipeArgs;
+        try {
+            const recipe = await config.recipeStorage.readRecipe(args.title);
+            if (!recipe) return `Recipe '${args.title}' not found.`;
+            console.log(GourmetUI.formatRecipe(recipe));
+            return `Success: Recipe '${args.title}' has been displayed.`;
+        } catch (e: any) { return `Error reading recipe: ${e.message}`; }
+    },
+    "search_recipes": async (config, rawArgs) => {
+        if (!config.recipeStorage) return "Error: Recipe storage not initialized.";
+        const args = rawArgs as SearchRecipesArgs;
+        try {
+            const results = await config.recipeStorage.searchRecipes(args.query);
+            if (results.length === 0) return `No matches found for '${args.query}'.`;
+            const output = `\n  Search Results for '${args.query}':\n` + 
+                   results.map(r => `  - ${r.title} (Score: ${r.score.toFixed(2)})`).join('\n') + '\n';
+            console.log(output);
+            return `Success: Search results for '${args.query}' have been displayed.`;
+        } catch (e: any) { return `Error searching recipes: ${e.message}`; }
+    },
+    "delete_recipe": async (config, rawArgs) => {
+        if (!config.recipeStorage) return "Error: Recipe storage not initialized.";
+        const args = rawArgs as DeleteRecipeArgs;
+        try {
+            const success = await config.recipeStorage.deleteRecipe(args.title);
+            return success ? `Recipe '${args.title}' deleted.` : `Recipe '${args.title}' not found.`;
+        } catch (e: any) { return `Error deleting recipe: ${e.message}`; }
+    },
+    "import_recipe_from_url": async (config, rawArgs) => {
+        if (!config.ai || !config.recipeStorage) return "Error: Gemini/Storage not initialized.";
+        const args = rawArgs as ImportRecipeArgs;
+        const screenshotPath = path.join(os.tmpdir(), `gourmet-scrape-${Date.now()}.png`);
+        console.log(chalk.magenta(`  [Vision] Capturing recipe from: ${args.url}`));
+        try {
+            execSync(`open "${args.url}"`);
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            execSync(`screencapture -x ${screenshotPath}`);
+            const imageData = fs.readFileSync(screenshotPath).toString('base64');
+            const model = config.ai.getGenerativeModel({ model: "gemini-2.0-flash" });
+            const prompt = `Extract the recipe from this image into structured JSON... (omitting long prompt for brevity)`;
+            const result = await model.generateContent([prompt, { inlineData: { mimeType: "image/png", data: imageData } }]);
+            const response = await result.response;
+            const jsonText = response.text().replace(/```json|```/g, '').trim();
+            const recipeData = JSON.parse(jsonText);
+            recipeData.metadata = recipeData.metadata || {};
+            recipeData.metadata.sourceUrl = args.url;
+            const savedPath = await config.recipeStorage.saveRecipe(recipeData);
+            return `Successfully imported recipe: '${recipeData.title}' to ${savedPath}`;
+        } catch (e: any) { return `Import Error: ${e.message}`; }
+        finally { if (fs.existsSync(screenshotPath)) fs.unlinkSync(screenshotPath); }
     }
 };

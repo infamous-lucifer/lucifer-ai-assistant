@@ -23,6 +23,7 @@ import { AssistantConfig } from './src/core/types.js';
 import { Assistant } from './src/core/assistant.js';
 import { syncDependencies, buildIndex, runStatusCheck } from './src/setup.js';
 import { toolHandlers } from './src/tools/index.js';
+import { RecipeStorage } from './src/storage/recipe.storage.js';
 
 const execAsync = promisify(exec);
 
@@ -50,6 +51,8 @@ dotenv.config({ path: CONFIG_FILE });
 let apiKey = process.env.API_KEY;
 const rl = readline.createInterface({ input, output });
 
+const recipeStorage = new RecipeStorage(PROJECT_ROOT);
+
 const config: AssistantConfig = {
     ai: undefined,
     localAI: undefined,
@@ -60,7 +63,8 @@ const config: AssistantConfig = {
     indexFile: INDEX_FILE,
     backupFile: BACKUP_FILE,
     allowedRoots: [PROJECT_ROOT, RUNTIMES_PATH],
-    dangerPatterns: manifest.dangerPatterns || []
+    dangerPatterns: manifest.dangerPatterns || [],
+    recipeStorage
 };
 
 const args = process.argv.slice(2);
