@@ -1,8 +1,14 @@
-# 👹 Lucifer AI: Hardened Edition (v9.3)
+# 👹 Lucifer AI: Hardened Edition (v10.0)
 
-**Lucifer** is a security-hardened, agentic AI developer partner for macOS, optimized for local execution on M-series chips. It serves as a specialized **CLI wrapper** that connects your terminal to a private local model (Qwen 2.5) for text/coding tasks and Gemini 2.0 for vision.
+**Lucifer** is a security-hardened, agentic AI developer partner for macOS, optimized for local execution on M-series chips.
 
-Unlike mass-market cloud agents, Lucifer follows the **UNIX Philosophy**: "Write programs that do one thing and do it well." It is built for developers who prioritize **100% privacy**, deterministic execution, and industrial-grade security.
+## 🚀 What's New in v10.0
+
+- **Dynamic Context Resolver**: Automatically detects project metadata, git remotes, and primary programming languages to provide "situational awareness" to the AI without manual prompting.
+- **Routed Command Architecture**: Replaced monolithic REPL logic with a modular `CommandRouter`, enabling faster feature expansion and cleaner code.
+- **Enhanced Security (Piped Data)**: Introduced `sanitizeInput` to automatically redact dangerous sub-shell evaluations (`$(...)`, `` `...` ``) from piped terminal data.
+- **Standardized UX**: Integrated progress spinners for all autonomous tool executions and expanded the `--help` documentation for better discoverability.
+- **Robust Testing**: Added a dedicated test suite for contextual awareness and expanded utility tests to 98+ passing cases.
 
 ## 🛡 Security First Architecture
 

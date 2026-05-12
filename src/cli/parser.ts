@@ -4,7 +4,8 @@ import path from 'node:path';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { AssistantConfig } from '../core/types.js';
-import { highlightMarkdown, Spinner } from '../utils/index.js';
+import { highlightMarkdown, Spinner, sanitizeInput } from '../utils/index.js';
+import { getProjectContext } from '../utils/context.js';
 import { toolHandlers } from '../tools/index.js';
 import { stdin } from 'node:process';
 import process from 'node:process';
@@ -36,10 +37,11 @@ export async function handleOneShot(config: AssistantConfig, args: string[]) {
     if (isPiped) {
         const chunks = [];
         for await (const chunk of stdin) chunks.push(chunk);
-        pipedData = Buffer.concat(chunks).toString('utf-8');
+        pipedData = sanitizeInput(Buffer.concat(chunks).toString('utf-8'));
     }
 
-    let fullPrompt = `${oneShotQuery}${pipedData ? '\n\nCONTEXT:\n' + pipedData : ''}`;
+    const contextAwareness = await getProjectContext(config.projectRoot);
+    let fullPrompt = `${contextAwareness}\n${oneShotQuery}${pipedData ? '\n\nCONTEXT (Piped Data):\n' + pipedData : ''}`;
     
     if (visionQuery !== undefined) {
         console.log(chalk.magenta("  [Vision] Analyzing screen..."));

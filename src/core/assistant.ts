@@ -10,6 +10,7 @@ import {
     pruneHistory,
     safeParseArguments
 } from '../utils/index.js';
+import { getProjectContext } from '../utils/context.js';
 import { toolHandlers } from '../tools/index.js';
 import type { ToolHandler } from '../tools/index.js';
 
@@ -17,6 +18,7 @@ export class Assistant {
     private history: Message[] = [];
     private toolsUsed: string[] = [];
     private verifiedReads: Set<string> = new Set<string>();
+    private projectContext: string = "";
 
     constructor(private config: AssistantConfig, private manifest: any) {
         let fileTree = "";
@@ -42,13 +44,27 @@ export class Assistant {
         this.history = [{ role: "system", content: basePrompt }];
     }
 
+    async initContext() {
+        this.projectContext = await getProjectContext(this.config.projectRoot);
+        this.addSystemContext(this.projectContext);
+    }
+
     async executeTool(name: string, rawArgs: unknown): Promise<string> {
         this.toolsUsed.push(name);
         const handler: ToolHandler | undefined = toolHandlers[name];
         if (!handler) return "Error: Unknown tool.";
 
-        if (typeof rawArgs !== 'object' || rawArgs === null) return "Error: Invalid tool arguments.";
-        return handler(this.config, rawArgs, this.verifiedReads);
+        const spinner = new Spinner(`Executing tool: ${name}...`);
+        spinner.start();
+        try {
+            if (typeof rawArgs !== 'object' || rawArgs === null) throw new Error("Invalid tool arguments.");
+            const result = await handler(this.config, rawArgs, this.verifiedReads);
+            spinner.stop("Success.");
+            return result;
+        } catch (e: any) {
+            spinner.stop(`Failed: ${e.message}`, 'red');
+            return `Error: ${e.message}`;
+        }
     }
 
     async chat(query: string, logFile?: string): Promise<string> {

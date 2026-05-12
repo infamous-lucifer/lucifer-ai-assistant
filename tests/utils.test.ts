@@ -12,6 +12,7 @@ import {
     safeParseArguments,
     pruneHistory,
     getLogsToDelete,
+    sanitizeInput,
     deps
 } from '../src/utils/index.js';
 
@@ -471,4 +472,25 @@ describe('tools schema', () => {
         expect(unique.size).toBe(names.length);
     });
 
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 10. sanitizeInput
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('sanitizeInput', () => {
+    test('redacts $(...) sub-shell executions', () => {
+        const input = 'echo $(whoami) and $(ls)';
+        expect(sanitizeInput(input)).toBe('echo [REDACTED_SUB_SHELL] and [REDACTED_SUB_SHELL]');
+    });
+
+    test('redacts `...` sub-shell executions', () => {
+        const input = 'echo `whoami`';
+        expect(sanitizeInput(input)).toBe('echo [REDACTED_SUB_SHELL]');
+    });
+
+    test('leaves normal text alone', () => {
+        const input = 'Hello World $100';
+        expect(sanitizeInput(input)).toBe('Hello World $100');
+    });
 });

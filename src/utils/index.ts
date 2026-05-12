@@ -11,6 +11,16 @@ export const deps = {
     }
 };
 
+/**
+ * Sanitizes input to prevent command injection in shell contexts.
+ * Removes sub-shell executions like $(...) and `...`.
+ */
+export function sanitizeInput(input: string): string {
+    return input
+        .replace(/\$\([^)]*\)/g, '[REDACTED_SUB_SHELL]')
+        .replace(/`[^`]*`/g, '[REDACTED_SUB_SHELL]');
+}
+
 export function isPathAllowed(filePath: string, allowedRoots: string[]): boolean {
     const resolved = path.resolve(filePath);
     return allowedRoots.some(root => {

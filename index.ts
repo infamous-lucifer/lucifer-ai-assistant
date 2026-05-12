@@ -95,46 +95,45 @@ async function initialize() {
 async function main() {
     if (args.includes('--help') || args.includes('-h')) {
         console.log(chalk.cyan(`
-=== LUCIFER v9.3 (HARDENED EDITION) — Quick Reference ===
+=== LUCIFER v10.0 (ROUTED & HARDENED) — Quick Reference ===
 
-STARTUP / ONE-SHOT
-  lucifer "query"      One-shot answer and exit
-  cat file | lucifer   Pipe data to Lucifer for analysis
-  lucifer -c "query"   Generate and optionally execute a command
-  lucifer --json       Force output in structured JSON
-  lucifer --vision     Analyze screen and exit
-  lucifer --search     Web search and exit
+USAGE:
+  lucifer [options] [query]
 
-INTERACTIVE MODE
-  lucifer              Start interactive agent session
-  lucifer --evolve     Start in system evolution mode (health check + audit)
-  lucifer --index      Build/Update local codebase search index
-  lucifer --status     Check system health
-  lucifer --setup      First-time setup wizard
-  lucifer --last       Open most recent session log
-  lucifer --rollback   Restore last stable version
-  lucifer --install-daemon  Install auto-start background service
-  lucifer --help       Show this message
+OPTIONS:
+  -h, --help            Show this detailed help message
+  -c, --command         Respond with a single macOS command (Interactive)
+  --json                Respond ONLY in valid JSON format
+  --vision [query]      Analyze your current screen (Gemini 2.0)
+  --search [query]      Perform a web search (DuckDuckGo)
+  --evolve              Start REPL with system health audit
+  --index               Update the local codebase search index
+  --status              Check configuration and dependency health
+  --setup               Configure API keys and environment
+  --last                Open the markdown log of the last session
+  --rollback            Revert to the previous Git commit
+  --install-daemon      Setup background process (launchd)
 
-IN-SESSION COMMANDS
-  !fix <issue>         Autonomous auto-repair (Searches, Reads, and Fixes)
-  !search <query>      Direct web research (DuckDuckGo via Node Fetch)
-  !tldr <command>      Get quick command cheat sheets (Native Fetch)
-  !report              Instant deep system diagnostics
-  !read <path>         Quickly inspect a file (auto-pipes to less if large)
-  !test                Run project test suite (npm test)
-  !status              Check Lucifer environment health
-  !lms                 Check LM Studio server status
-  !screen [query]      Analyze your screen with Gemini Vision
-  !clip [query]        Analyze clipboard content
-  !recipes             List all saved gourmet recipes
-  !recipe <title>      Read a specific recipe
-  exit / quit          End session
+IN-SESSION COMMANDS (!commands):
+  !fix <issue>          [Autonomous] Search, read, and repair code
+  !search <query>       Direct web search from the prompt
+  !tldr <command>       Fetch command cheat sheets (tldr.sh style)
+  !report               Generate deep system diagnostics report
+  !read <path>          Quickly inspect file (uses 'less' for long files)
+  !test                 Execute 'npm test' in project root
+  !status               Check environment health status
+  !lms                  Check LM Studio server and model status
+  !screen [query]       Trigger vision analysis of your desktop
+  !clip [query]         Analyze clipboard content safely
+  !recipes              List available gourmet automation recipes
+  !recipe <title>       Read and load a specific recipe
+  exit / quit           Gracefully end the session
 
-CAPABILITIES
-  - Proactive tool use (shell, grep, read, replace)
-  - Security-hardened command execution
-  - Decoupled Hybrid Architecture (Local Reasoning + Cloud Vision)
+SECURITY FEATURES:
+  - Sub-shell evaluation stripping in piped modes
+  - Dangerous shell operator highlighting
+  - JSON schema validation for autonomous tool calls
+  - Path restriction to PROJECT_ROOT and RUNTIMES_PATH
 `));
         process.exit(0);
     }
