@@ -34,11 +34,15 @@ export class RecipeStorage {
       fields: ['title', 'ingredients', 'instructions', 'tags'],
       storeFields: ['title']
     });
-    
-    this.initGit();
-    this.loadIndex();
-    this.loadVectors();
-    this.initSemantic();
+  }
+
+  static async create(baseDir: string): Promise<RecipeStorage> {
+    const storage = new RecipeStorage(baseDir);
+    await storage.initGit();
+    await storage.loadIndex();
+    storage.loadVectors();
+    await storage.initSemantic();
+    return storage;
   }
 
   private async initSemantic() {
@@ -188,7 +192,7 @@ export class RecipeStorage {
     const content = this.serializeRecipe(validated);
     fs.writeFileSync(filePath, content);
 
-    this.miniSearch.discard(validated.title);
+    try { this.miniSearch.discard(validated.title); } catch {}
     this.miniSearch.add({
       id: validated.title,
       title: validated.title,

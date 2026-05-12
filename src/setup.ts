@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import crypto from 'node:crypto';
@@ -93,7 +94,7 @@ export async function runStatusCheck(config: AssistantConfig, configFile: string
     }
 
     try {
-        const lmsPath = path.join(process.env.HOME || '', '.lmstudio/bin/lms');
+        const lmsPath = path.join(os.homedir(), '.lmstudio/bin/lms');
         const status = execSync(`${lmsPath} status`, { encoding: 'utf-8', timeout: 5000 });
         if (!status.includes('Server: OFF')) {
             console.log(chalk.green('✔ LM Studio server running'));

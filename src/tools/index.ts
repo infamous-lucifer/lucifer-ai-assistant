@@ -257,15 +257,15 @@ export const toolHandlers: Record<string, ToolHandler> = {
             const getVal = (blob: string, key: string) => {
                 const reg = new RegExp(`${key}:\\s+(.*)`, 'i');
                 const match = blob.match(reg);
-                return match ? match[1].trim() : "Unknown";
+                return (match && match[1]) ? match[1].trim() : "Unknown";
             };
 
             const chip = getVal(hw, "Chip");
             const cores = getVal(hw, "Total Number of Cores");
             const memory = getVal(hw, "Memory");
             
-            const freeStorage = getVal(storage, "Free").split('(')[0].trim();
-            const totalStorage = getVal(storage, "Capacity").split('(')[0].trim();
+            const freeStorage = getVal(storage, "Free").split('(')[0]!.trim();
+            const totalStorage = getVal(storage, "Capacity").split('(')[0]!.trim();
             const smartStatus = getVal(storage, "S.M.A.R.T. Status");
 
             const batteryCycle = getVal(battery, "Cycle Count");
@@ -293,7 +293,7 @@ export const toolHandlers: Record<string, ToolHandler> = {
 - **Health Condition:** ${batteryCondition === 'Normal' ? '✅ Normal' : '⚠️ ' + batteryCondition}
 `.trim();
         } catch (e: any) {
-            return `System Report Error: ${e.message}. Fallback to basic: ${execSync('uptime').toString()}`;
+            return `System Report Error: ${e.message}. Fallback to basic: ${execFileSync('uptime', {encoding: 'utf-8'}).trim()}`;
         }
     },
     // --- Gourmet Tool Handlers ---
@@ -346,6 +346,14 @@ export const toolHandlers: Record<string, ToolHandler> = {
     "import_recipe_from_url": async (config, rawArgs) => {
         if (!config.ai || !config.recipeStorage) return "Error: Gemini/Storage not initialized.";
         const args = rawArgs as ImportRecipeArgs;
+        
+        try {
+            const parsed = new URL(args.url);
+            if (!['http:', 'https:'].includes(parsed.protocol)) return "Error: Only http/https URLs are allowed.";
+        } catch {
+            return "Error: Invalid URL.";
+        }
+
         const screenshotPath = path.join(os.tmpdir(), `gourmet-scrape-${Date.now()}.png`);
         console.log(chalk.magenta(`  [Vision] Capturing recipe from: ${args.url}`));
         try {

@@ -16,15 +16,15 @@ export async function seeScreen(config: AssistantConfig, query: string): Promise
         // Attempt to get the window ID of the frontmost application
         let windowId = "";
         try {
-            windowId = execSync('osascript -e "tell application \\"System Events\\" to get id of window 1 of (first process whose frontmost is true)"', { encoding: 'utf-8', timeout: 5000 }).trim();
+            windowId = execFileSync('osascript', ['-e', 'tell application "System Events" to get id of window 1 of (first process whose frontmost is true)'], { encoding: 'utf-8', timeout: 5000 }).trim();
         } catch (e) {}
 
         if (windowId && !isNaN(Number(windowId))) {
-            execSync(`screencapture -l ${windowId} -x ${screenshotPath}`, { timeout: 10000 });
+            execFileSync('screencapture', ['-l', windowId, '-x', screenshotPath], { timeout: 10000 });
         } else {
             // Fallback to interactive window selection if ID fails, or just the main screen if in non-interactive mode
             // For now, we use -x to avoid the capture sound and just capture the main display as a fallback
-            execSync(`screencapture -x ${screenshotPath}`, { timeout: 10000 });
+            execFileSync('screencapture', ['-x', screenshotPath], { timeout: 10000 });
         }
 
         const imageData = fs.readFileSync(screenshotPath).toString('base64');

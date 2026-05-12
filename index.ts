@@ -70,6 +70,9 @@ const config: AssistantConfig = {
 const args = process.argv.slice(2);
 
 async function initialize() {
+    if (args.some(a => ['!recipes', '!recipe', 'recipe'].includes(a))) {
+        config.recipeStorage = await RecipeStorage.create(PROJECT_ROOT);
+    }
     await syncDependencies(config, manifest);
     if (!apiKey) {
         apiKey = await rl.question(chalk.green('Enter your Gemini API Key: '));
@@ -145,11 +148,11 @@ CAPABILITIES
         process.exit(0);
     }
     if (args.includes('--rollback')) {
-        if (fs.existsSync(BACKUP_FILE)) {
-            fs.copyFileSync(BACKUP_FILE, path.join(PROJECT_ROOT, "index.ts"));
-            console.log(chalk.green("Rollback successful. Restored index.ts from backup."));
-        } else {
-            console.log(chalk.red("No backup found."));
+        try {
+            execFileSync('git', ['reset', '--hard', 'HEAD~1'], { cwd: PROJECT_ROOT, stdio: 'inherit' });
+            console.log(chalk.green("Rollback successful. Restored to previous Git commit."));
+        } catch (e: any) {
+            console.log(chalk.red(`Rollback failed: ${e.message}`));
         }
         process.exit(0);
     }
@@ -163,7 +166,7 @@ CAPABILITIES
             console.log(chalk.red("No logs found."));
             process.exit(0);
         }
-        const lastLog = path.join(LOGS_DIR, logs[logs.length - 1]);
+        const lastLog = path.join(LOGS_DIR, logs[logs.length - 1]!);
         console.log(chalk.cyan(`Opening last log: ${lastLog}`));
         execFileSync('open', [lastLog]);
         process.exit(0);

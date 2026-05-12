@@ -52,8 +52,10 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
             if (query === '!report') {
                 process.stdout.write(chalk.blue("Generating Deep System Report...\n"));
                 const handler = toolHandlers["get_deep_system_report"];
-                const result = await handler(config, {}, new Set());
-                console.log(`\n${chalk.white(result)}\n`);
+                if (handler) {
+                    const result = await handler(config, {}, new Set());
+                    console.log(`\n${chalk.white(result)}\n`);
+                }
                 await assistant.chat(`User executed '!report'. Result was displayed. You may now comment on system health if necessary.`, LOG_FILE);
                 continue;
             }
@@ -95,6 +97,7 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
                 if (!cmdName) continue;
                 process.stdout.write(chalk.blue(`Fetching cheat sheet for: ${cmdName}...\n`));
                 const handler = toolHandlers["get_command_help"];
+                if (!handler) continue;
                 const result = await handler(config, { command: cmdName }, new Set());
                 console.log(`\n${chalk.white(result)}\n`);
                 await assistant.chat(`User executed '!tldr ${cmdName}'. Cheat sheet was displayed.`, LOG_FILE);
@@ -102,15 +105,19 @@ export async function startRepl(config: AssistantConfig, manifest: any, isEvolvi
             }
 
             if (query === '!recipes') {
+                if (!config.recipeStorage) config.recipeStorage = await RecipeStorage.create(config.projectRoot);
                 const handler = toolHandlers["list_recipes"];
+                if (!handler) continue;
                 await handler(config, {}, new Set());
                 continue;
             }
 
             if (query.startsWith('!recipe')) {
+                if (!config.recipeStorage) config.recipeStorage = await RecipeStorage.create(config.projectRoot);
                 const title = query.replace('!recipe', '').trim();
                 if (!title) continue;
                 const handler = toolHandlers["read_recipe"];
+                if (!handler) continue;
                 await handler(config, { title }, new Set());
                 continue;
             }

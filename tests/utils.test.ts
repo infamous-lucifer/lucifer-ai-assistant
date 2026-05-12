@@ -266,10 +266,10 @@ describe('applySearchAndReplace', () => {
             if (result.ok) expect(result.content).toBe(`const x = 2;\nconsole.log(x);\nconst y = 1;`);
         });
 
-        test('fails if search string is not unique', () => {
+        test('replaces multiple occurrences', () => {
             const result = applySearchAndReplace(fileText, '1', '10');
-            expect(result.ok).toBe(false);
-            if (!result.ok) expect(result.error).toContain('Search string is NOT unique');
+            expect(result.ok).toBe(true);
+            if (result.ok) expect(result.content).toBe(`const x = 10;\nconsole.log(x);\nconst y = 10;`);
         });
 
         test('handles unique multiline blocks', () => {
@@ -446,6 +446,12 @@ describe('tools schema', () => {
             name: 'get_command_help',
             requiredParams: ['command'],
         },
+        { name: 'add_recipe', requiredParams: ['recipe'] },
+        { name: 'list_recipes', requiredParams: [] },
+        { name: 'read_recipe', requiredParams: ['title'] },
+        { name: 'search_recipes', requiredParams: ['query'] },
+        { name: 'delete_recipe', requiredParams: ['title'] },
+        { name: 'import_recipe_from_url', requiredParams: ['url'] }
     ];
 
     test.each(expectedTools)('$name has all required parameters defined', ({ name, requiredParams }) => {
@@ -455,8 +461,8 @@ describe('tools schema', () => {
         expect(unique.size).toBe(requiredParams.length);
     });
 
-    test('there are exactly 10 tools defined', () => {
-        expect(expectedTools).toHaveLength(10);
+    test('there are exactly 16 tools defined', () => {
+        expect(expectedTools).toHaveLength(16);
     });
 
     test('all tool names are unique', () => {

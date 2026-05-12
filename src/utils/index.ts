@@ -66,10 +66,7 @@ export function applySearchAndReplace(fileText: string, searchString: string, re
     if (occurrences === 0) {
         return { ok: false, error: `Error: The exact search string was not found in the file. Make sure you match the indentation and whitespace perfectly.` };
     }
-    if (occurrences > 1) {
-        return { ok: false, error: `Error: Search string is NOT unique. Found ${occurrences} occurrences. Please provide more surrounding context to make the search string unique.` };
-    }
-    const newContent = fileText.replace(searchString, replaceString);
+    const newContent = fileText.split(searchString).join(replaceString);
     return { ok: true, content: newContent };
 }
 
